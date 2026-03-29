@@ -10,8 +10,5 @@ class WalletManagementMsApplicationTest {
 
     @Test
     @DisplayName("Should load application context successfully")
-    void contextLoads() {
-        // This test verifies that the Spring application context loads successfully
-        // If the context fails to load, this test will fail
-    }
+    void contextLoads() {}
 }
