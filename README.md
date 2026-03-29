@@ -339,6 +339,60 @@ HTTP Status Codes:
 - **Test Coverage**: >95% on domain and infrastructure persistence layers
 - **Production-Ready**: Enterprise-grade implementation with proper error handling, logging, and validation
 
+## Design Decisions and Requirement Mapping
+
+This section explains the main design choices and how they address functional and non-functional requirements.
+
+### Functional requirements
+
+- **Wallet lifecycle and money movement (`/wallets`, `/transfers`)**
+  - Decision: use explicit use cases (`CreateWalletUseCase`, `DepositUseCase`, `WithdrawUseCase`, `TransferUseCase`) with a domain-centric model.
+  - Why: keeps business rules (amount validation, insufficient balance handling, transfer consistency) centralized and testable.
+
+- **Historical balance and transaction traceability**
+  - Decision: persist wallet state and transaction ledger separately in MongoDB (`wallets` + `transactions`).
+  - Why: enables reconstruction of account history and audit-friendly transaction listing per wallet.
+
+- **Input and business validation**
+  - Decision: combine Jakarta Validation at DTO boundary with domain exceptions in core model.
+  - Why: invalid input is rejected early (`400`), and domain invariants are enforced consistently (`422` for insufficient balance).
+
+### Non-functional requirements
+
+- **Maintainability and extensibility**
+  - Decision: apply Clean Architecture + DDD layering (domain, application, infrastructure, controller).
+  - Why: business logic is isolated from frameworks and storage details, reducing coupling and easing future changes.
+
+- **Operational reliability and diagnosability**
+  - Decision: expose Spring Actuator health endpoint only (`/actuator/health`) and add structured logs in controllers/exception handler.
+  - Why: enables safe runtime monitoring and faster incident triage with minimal operational surface.
+
+- **Portability and environment consistency**
+  - Decision: provide multi-stage `Dockerfile` and documented Mongo startup via `docker-compose`.
+  - Why: standardizes execution across machines with reduced local setup variability.
+
+## Trade-offs and Time Constraints
+
+Given time constraints, some capabilities were prioritized while others were deferred.
+
+- **BDD/E2E automation (Cucumber/Testcontainers)**
+  - Trade-off: current coverage emphasizes unit + integration tests and functional API validation scripts.
+  - Deferred: a full BDD suite with Cucumber scenarios and Testcontainers-managed dependencies.
+
+- **Load and performance testing**
+  - Trade-off: correctness and API contract validation were prioritized.
+  - Deferred: dedicated performance baselines (throughput, latency percentiles, stress and soak tests).
+
+- **Resilience and chaos-style validation**
+  - Trade-off: health checks and error handling are in place, but advanced resilience experiments were not included.
+  - Deferred: fault injection, dependency degradation tests, and formal recovery SLO validation.
+
+- **Operational hardening depth**
+  - Trade-off: health and logging are implemented with conservative defaults.
+  - Deferred: broader observability stack (metrics dashboards, tracing, alert rules) and stricter production profiles.
+
+These trade-offs do not block functional correctness, but they are recommended next steps before high-scale production rollout.
+
 ## Running Tests
 
 ```bash
