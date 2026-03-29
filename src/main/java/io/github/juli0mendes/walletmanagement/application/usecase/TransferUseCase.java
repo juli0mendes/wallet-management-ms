@@ -1,6 +1,7 @@
 package io.github.juli0mendes.walletmanagement.application.usecase;
 
 import io.github.juli0mendes.walletmanagement.domain.model.Transaction;
+import io.github.juli0mendes.walletmanagement.domain.model.TransactionType;
 import io.github.juli0mendes.walletmanagement.domain.model.Wallet;
 import io.github.juli0mendes.walletmanagement.domain.repository.WalletRepository;
 import io.github.juli0mendes.walletmanagement.dto.TransferRequest;
@@ -32,18 +33,10 @@ public class TransferUseCase {
         Wallet destinationWallet = walletRepository.findById(destinationWalletId)
                 .orElseThrow(() -> new WalletNotFoundException(destinationWalletId.toString()));
 
-        if (sourceWallet.getBalance().compareTo(amount) < 0) {
-            throw new IllegalArgumentException("Insufficient balance in source wallet");
-        }
+        sourceWallet.withdraw(amount);
+        destinationWallet.deposit(amount);
 
-        BigDecimal newSourceBalance = sourceWallet.getBalance().subtract(amount);
-        sourceWallet.setBalance(newSourceBalance);
-        sourceWallet.setUpdatedAt(LocalDateTime.now());
         walletRepository.save(sourceWallet);
-
-        BigDecimal newDestBalance = destinationWallet.getBalance().add(amount);
-        destinationWallet.setBalance(newDestBalance);
-        destinationWallet.setUpdatedAt(LocalDateTime.now());
         walletRepository.save(destinationWallet);
 
         LocalDateTime now = LocalDateTime.now();
@@ -51,9 +44,9 @@ public class TransferUseCase {
         Transaction sourceTransaction = new Transaction(
                 UUID.randomUUID(),
                 sourceWalletId,
-                "TRANSFER_OUT",
+                TransactionType.TRANSFER_OUT,
                 amount,
-                newSourceBalance,
+                sourceWallet.getBalance(),
                 request.getDescription(),
                 now
         );
@@ -62,9 +55,9 @@ public class TransferUseCase {
         Transaction destTransaction = new Transaction(
                 UUID.randomUUID(),
                 destinationWalletId,
-                "TRANSFER_IN",
+                TransactionType.TRANSFER_IN,
                 amount,
-                newDestBalance,
+                destinationWallet.getBalance(),
                 request.getDescription(),
                 now
         );

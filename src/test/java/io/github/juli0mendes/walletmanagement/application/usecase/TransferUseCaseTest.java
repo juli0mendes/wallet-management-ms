@@ -1,6 +1,7 @@
 package io.github.juli0mendes.walletmanagement.application.usecase;
 
 import io.github.juli0mendes.walletmanagement.domain.model.Transaction;
+import io.github.juli0mendes.walletmanagement.domain.model.TransactionType;
 import io.github.juli0mendes.walletmanagement.domain.model.Wallet;
 import io.github.juli0mendes.walletmanagement.domain.repository.WalletRepository;
 import io.github.juli0mendes.walletmanagement.dto.TransferRequest;
@@ -45,7 +46,7 @@ class TransferUseCaseTest {
         when(walletRepository.findById(sourceWalletId)).thenReturn(Optional.of(sourceWallet));
         when(walletRepository.findById(destinationWalletId)).thenReturn(Optional.of(destWallet));
         when(walletRepository.save(any(Wallet.class))).thenReturn(sourceWallet, destWallet); // First call for source, second for dest
-        when(walletRepository.saveTransaction(any(Transaction.class))).thenReturn(new Transaction(UUID.randomUUID(), sourceWalletId, "TRANSFER_OUT", BigDecimal.valueOf(100.00), BigDecimal.valueOf(100.00), "Test transfer", now));
+        when(walletRepository.saveTransaction(any(Transaction.class))).thenReturn(new Transaction(UUID.randomUUID(), sourceWalletId, TransactionType.TRANSFER_OUT, BigDecimal.valueOf(100.00), BigDecimal.valueOf(100.00), "Test transfer", now));
 
         TransferResponse response = transferUseCase.execute(request);
 

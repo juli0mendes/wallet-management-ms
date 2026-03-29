@@ -1,6 +1,7 @@
 package io.github.juli0mendes.walletmanagement.application.usecase;
 
 import io.github.juli0mendes.walletmanagement.domain.model.Transaction;
+import io.github.juli0mendes.walletmanagement.domain.model.TransactionType;
 import io.github.juli0mendes.walletmanagement.domain.model.Wallet;
 import io.github.juli0mendes.walletmanagement.domain.repository.WalletRepository;
 import io.github.juli0mendes.walletmanagement.dto.BalanceResponse;
@@ -55,8 +56,8 @@ class GetBalanceUseCaseTest {
         var at = now.minusDays(1);
         var wallet = new Wallet(walletId, "John Doe", "john@example.com", BigDecimal.valueOf(150.00), now, now);
         var transactions = List.of(
-                new Transaction(UUID.randomUUID(), walletId, "DEPOSIT", BigDecimal.valueOf(100.00), BigDecimal.valueOf(100.00), "Deposit", at.minusHours(1)),
-                new Transaction(UUID.randomUUID(), walletId, "DEPOSIT", BigDecimal.valueOf(50.00), BigDecimal.valueOf(150.00), "Deposit", at.plusHours(1))
+                new Transaction(UUID.randomUUID(), walletId, TransactionType.DEPOSIT, BigDecimal.valueOf(100.00), BigDecimal.valueOf(100.00), "Deposit", at.minusHours(1)),
+                new Transaction(UUID.randomUUID(), walletId, TransactionType.DEPOSIT, BigDecimal.valueOf(50.00), BigDecimal.valueOf(150.00), "Deposit", at.plusHours(1))
         );
 
         when(walletRepository.findById(walletId)).thenReturn(Optional.of(wallet));

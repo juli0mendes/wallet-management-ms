@@ -1,6 +1,7 @@
 package io.github.juli0mendes.walletmanagement.infrastructure.repository;
 
 import io.github.juli0mendes.walletmanagement.domain.model.Transaction;
+import io.github.juli0mendes.walletmanagement.domain.model.TransactionType;
 import io.github.juli0mendes.walletmanagement.domain.model.Wallet;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -54,13 +55,13 @@ class InMemoryWalletRepositoryTest {
     void shouldSaveAndFindTransactionsByWalletId() {
         var walletId = UUID.randomUUID();
         var now = LocalDateTime.now();
-        var transaction = new Transaction(UUID.randomUUID(), walletId, "DEPOSIT", BigDecimal.valueOf(50.00), BigDecimal.valueOf(50.00), "Deposit", now);
+        var transaction = new Transaction(UUID.randomUUID(), walletId, TransactionType.DEPOSIT, BigDecimal.valueOf(50.00), BigDecimal.valueOf(50.00), "Deposit", now);
 
         repository.saveTransaction(transaction);
         List<Transaction> transactions = repository.findTransactionsByWalletId(walletId);
 
         assertEquals(1, transactions.size());
-        assertEquals(transaction, transactions.get(0));
+        assertEquals(transaction, transactions.getFirst());
     }
 
     @Test
@@ -69,14 +70,14 @@ class InMemoryWalletRepositoryTest {
         var walletId = UUID.randomUUID();
         var now = LocalDateTime.now();
         var at = now.minusHours(1);
-        var transaction1 = new Transaction(UUID.randomUUID(), walletId, "DEPOSIT", BigDecimal.valueOf(50.00), BigDecimal.valueOf(50.00), "Deposit", at.minusHours(1));
-        var transaction2 = new Transaction(UUID.randomUUID(), walletId, "WITHDRAW", BigDecimal.valueOf(20.00), BigDecimal.valueOf(30.00), "Withdraw", at.plusHours(1));
+        var transaction1 = new Transaction(UUID.randomUUID(), walletId, TransactionType.DEPOSIT, BigDecimal.valueOf(50.00), BigDecimal.valueOf(50.00), "Deposit", at.minusHours(1));
+        var transaction2 = new Transaction(UUID.randomUUID(), walletId, TransactionType.WITHDRAW, BigDecimal.valueOf(20.00), BigDecimal.valueOf(30.00), "Withdraw", at.plusHours(1));
 
         repository.saveTransaction(transaction1);
         repository.saveTransaction(transaction2);
         List<Transaction> transactions = repository.findTransactionsByWalletIdAndCreatedAtBefore(walletId, at);
 
         assertEquals(1, transactions.size());
-        assertEquals(transaction1, transactions.get(0));
+        assertEquals(transaction1, transactions.getFirst());
     }
 }

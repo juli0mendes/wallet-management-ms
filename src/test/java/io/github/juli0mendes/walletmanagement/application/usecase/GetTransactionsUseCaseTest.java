@@ -1,6 +1,7 @@
 package io.github.juli0mendes.walletmanagement.application.usecase;
 
 import io.github.juli0mendes.walletmanagement.domain.model.Transaction;
+import io.github.juli0mendes.walletmanagement.domain.model.TransactionType;
 import io.github.juli0mendes.walletmanagement.domain.model.Wallet;
 import io.github.juli0mendes.walletmanagement.domain.repository.WalletRepository;
 import io.github.juli0mendes.walletmanagement.dto.TransactionResponse;
@@ -38,8 +39,8 @@ class GetTransactionsUseCaseTest {
         var now = LocalDateTime.now();
         var wallet = new Wallet(walletId, "John Doe", "john@example.com", BigDecimal.valueOf(150.00), now, now);
         var transactions = List.of(
-                new Transaction(UUID.randomUUID(), walletId, "DEPOSIT", BigDecimal.valueOf(100.00), BigDecimal.valueOf(100.00), "Deposit", now),
-                new Transaction(UUID.randomUUID(), walletId, "WITHDRAW", BigDecimal.valueOf(50.00), BigDecimal.valueOf(50.00), "Withdraw", now)
+                new Transaction(UUID.randomUUID(), walletId, TransactionType.DEPOSIT, BigDecimal.valueOf(100.00), BigDecimal.valueOf(100.00), "Deposit", now),
+                new Transaction(UUID.randomUUID(), walletId, TransactionType.WITHDRAW, BigDecimal.valueOf(50.00), BigDecimal.valueOf(50.00), "Withdraw", now)
         );
 
         when(walletRepository.findById(walletId)).thenReturn(Optional.of(wallet));

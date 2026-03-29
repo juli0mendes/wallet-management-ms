@@ -1,6 +1,7 @@
 package io.github.juli0mendes.walletmanagement.application.usecase;
 
 import io.github.juli0mendes.walletmanagement.domain.model.Transaction;
+import io.github.juli0mendes.walletmanagement.domain.model.TransactionType;
 import io.github.juli0mendes.walletmanagement.domain.model.Wallet;
 import io.github.juli0mendes.walletmanagement.domain.repository.WalletRepository;
 import io.github.juli0mendes.walletmanagement.dto.TransactionResponse;
@@ -40,7 +41,7 @@ class WithdrawUseCaseTest {
         var wallet = new Wallet(walletId, "John Doe", "john@example.com", BigDecimal.valueOf(100.00), now, now);
         var updatedWallet = new Wallet(walletId, "John Doe", "john@example.com", BigDecimal.valueOf(50.00), now, now.plusSeconds(1));
         var request = new WithdrawRequest(BigDecimal.valueOf(50.00), "Test withdraw");
-        var transaction = new Transaction(UUID.randomUUID(), walletId, "WITHDRAW", BigDecimal.valueOf(50.00), BigDecimal.valueOf(50.00), "Test withdraw", now.plusSeconds(1));
+        var transaction = new Transaction(UUID.randomUUID(), walletId, TransactionType.WITHDRAW, BigDecimal.valueOf(50.00), BigDecimal.valueOf(50.00), "Test withdraw", now.plusSeconds(1));
 
         when(walletRepository.findById(walletId)).thenReturn(Optional.of(wallet));
         when(walletRepository.save(any(Wallet.class))).thenReturn(updatedWallet);
