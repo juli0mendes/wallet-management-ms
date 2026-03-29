@@ -2,7 +2,7 @@
 
 A production-grade digital wallet management microservice built with Spring Boot, following Clean Architecture and Domain-Driven Design principles. Supports wallet creation, deposits, withdrawals, and transfers with persistent storage in MongoDB.
 
-**Status**: ✅ Stage 3 (Domain + MongoDB Persistence) - Complete and Production Ready
+**Status**: ✅ Production-ready API (MongoDB persistence, Actuator health checks, Docker support)
 
 ## Quick Start
 
@@ -46,6 +46,86 @@ mvn spring-boot:run
 ```
 
 The application will start on `http://localhost:8080/api/v1`
+
+### 4. Health Check (Actuator)
+
+Only the health endpoint is exposed for operational checks:
+
+```bash
+curl http://localhost:8080/actuator/health
+```
+
+Expected output:
+
+```json
+{"status":"UP"}
+```
+
+## Run with Docker
+
+Use this approach when you want to run the app image built from the project's `Dockerfile` and keep MongoDB running from the existing `docker-compose` setup.
+
+### Full flow (Mongo via docker-compose + app via Dockerfile)
+
+1) Start MongoDB with compose:
+
+```bash
+cd docker
+docker compose up -d
+cd ..
+```
+
+2) Build the application image from `Dockerfile`:
+
+```bash
+docker build -t wallet-management-ms:latest .
+```
+
+3) Run the application container:
+
+```bash
+docker run --rm -p 8080:8080 \
+  -e MONGODB_URI='mongodb://walletadmin:walletpass@host.docker.internal:27017/wallet_management?authSource=admin' \
+  --name wallet-management-ms \
+  wallet-management-ms:latest
+```
+
+4) Validate health endpoint:
+
+```bash
+curl http://localhost:8080/actuator/health
+```
+
+5) Stop everything when done:
+
+```bash
+docker stop wallet-management-ms
+cd docker
+docker compose down
+```
+
+> Linux note: if `host.docker.internal` is not available, use your Docker host gateway/IP in `MONGODB_URI`.
+
+### Build image
+
+```bash
+docker build -t wallet-management-ms:latest .
+```
+
+### Run container
+
+```bash
+docker run --rm -p 8080:8080 \
+  -e MONGODB_URI='mongodb://walletadmin:walletpass@host.docker.internal:27017/wallet_management?authSource=admin' \
+  --name wallet-management-ms \
+  wallet-management-ms:latest
+```
+
+After startup, validate health:
+
+```bash
+curl http://localhost:8080/actuator/health
+```
 
 ## API Endpoints
 
@@ -137,6 +217,24 @@ src/main/java/io/github/juli0mendes/walletmanagement/
 ✅ **Embedded MongoDB for unit tests** (in-memory persistence)  
 ✅ Proper HTTP status codes  
 ✅ High test coverage (>95% on domain + persistence layers)  
+✅ Spring Actuator health endpoint exposure (`/actuator/health`)  
+✅ Structured operational logs on controllers and exception handling  
+✅ Multi-stage Docker image for portable execution  
+
+## Observability
+
+- **Health endpoint**: `/actuator/health`
+- **Exposed Actuator endpoints**: health only
+- **Default log level**: `INFO` (application), `WARN` (Spring Web)
+- **Where logs are generated**:
+  - Request lifecycle in wallet and transfer controllers
+  - Validation/business/runtime exceptions in global exception handler
+
+To inspect container logs:
+
+```bash
+docker logs -f wallet-management-ms
+```
 
 ## Data Storage
 
@@ -179,9 +277,11 @@ HTTP Status Codes:
 - **Java 21**
 - **Spring Boot 3.4.5**
 - **Spring Data MongoDB**
+- **Spring Boot Actuator**
 - **MongoDB 7.0** (Docker)
 - **de.flapdoodle.embed.mongo** (Embedded MongoDB for tests)
 - **Maven**
+- **Docker**
 - **Jackson**
 - **Jakarta Validation**
 - **JUnit 5 + Mockito**
