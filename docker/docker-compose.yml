@@ -1,0 +1,23 @@
+services:
+  mongodb:
+    image: mongo:7.0
+    container_name: wallet-management-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:-walletadmin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-walletpass}
+      MONGO_INITDB_DATABASE: ${MONGO_INITDB_DATABASE:-wallet_management}
+    volumes:
+      - wallet-management-mongodb-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+volumes:
+  wallet-management-mongodb-data:
+    name: wallet-management-mongodb-data
