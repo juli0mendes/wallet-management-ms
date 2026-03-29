@@ -124,9 +124,105 @@ jobs:
           fi
 
           NEW_TAG="v${MAJ}.${MIN}.${PATCH}"
+          echo "latest_tag=$LATEST_TAG" >> "$GITHUB_OUTPUT"
           echo "new_tag=$NEW_TAG" >> "$GITHUB_OUTPUT"
           echo "bump=$BUMP" >> "$GITHUB_OUTPUT"
           echo "Final version: $NEW_TAG"
+
+      - name: Build grouped release notes
+        if: steps.semver.outputs.bump != 'none'
+        id: notes
+        env:
+          LATEST_TAG: ${{ steps.semver.outputs.latest_tag }}
+          NEW_TAG: ${{ steps.semver.outputs.new_tag }}
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          if [ "$LATEST_TAG" = "0.0.0" ]; then
+            RANGE="HEAD"
+          else
+            RANGE="${LATEST_TAG}..HEAD"
+          fi
+
+          FEAT_FILE=$(mktemp)
+          FIX_FILE=$(mktemp)
+          CI_FILE=$(mktemp)
+          PERF_FILE=$(mktemp)
+          REFACTOR_FILE=$(mktemp)
+          DOCS_FILE=$(mktemp)
+          TEST_FILE=$(mktemp)
+          BUILD_FILE=$(mktemp)
+          DEPS_FILE=$(mktemp)
+          CONFIG_FILE=$(mktemp)
+          STYLE_FILE=$(mktemp)
+          CHORE_FILE=$(mktemp)
+          REVERT_FILE=$(mktemp)
+          OTHER_FILE=$(mktemp)
+
+          while IFS='|' read -r subject sha; do
+            [ -z "$subject" ] && continue
+
+            entry="- ${subject} ([${sha}](${REPO_URL}/commit/${sha}))"
+
+            if echo "$subject" | grep -Eiq '^feat(\([^)]+\))?!?:'; then
+              echo "$entry" >> "$FEAT_FILE"
+            elif echo "$subject" | grep -Eiq '^fix(\([^)]+\))?!?:'; then
+              echo "$entry" >> "$FIX_FILE"
+            elif echo "$subject" | grep -Eiq '^ci(\([^)]+\))?!?:'; then
+              echo "$entry" >> "$CI_FILE"
+            elif echo "$subject" | grep -Eiq '^perf(\([^)]+\))?!?:'; then
+              echo "$entry" >> "$PERF_FILE"
+            elif echo "$subject" | grep -Eiq '^refactor(\([^)]+\))?!?:'; then
+              echo "$entry" >> "$REFACTOR_FILE"
+            elif echo "$subject" | grep -Eiq '^docs(\([^)]+\))?!?:'; then
+              echo "$entry" >> "$DOCS_FILE"
+            elif echo "$subject" | grep -Eiq '^test(\([^)]+\))?!?:'; then
+              echo "$entry" >> "$TEST_FILE"
+            elif echo "$subject" | grep -Eiq '^build(\([^)]+\))?!?:'; then
+              echo "$entry" >> "$BUILD_FILE"
+            elif echo "$subject" | grep -Eiq '^deps(\([^)]+\))?!?:'; then
+              echo "$entry" >> "$DEPS_FILE"
+            elif echo "$subject" | grep -Eiq '^config(\([^)]+\))?!?:'; then
+              echo "$entry" >> "$CONFIG_FILE"
+            elif echo "$subject" | grep -Eiq '^style(\([^)]+\))?!?:'; then
+              echo "$entry" >> "$STYLE_FILE"
+            elif echo "$subject" | grep -Eiq '^chore(\([^)]+\))?!?:'; then
+              echo "$entry" >> "$CHORE_FILE"
+            elif echo "$subject" | grep -Eiq '^revert(\([^)]+\))?!?:'; then
+              echo "$entry" >> "$REVERT_FILE"
+            else
+              echo "$entry" >> "$OTHER_FILE"
+            fi
+          done < <(git log ${RANGE} --pretty=format:'%s|%h' --no-merges)
+
+          NOTES_FILE=release_notes.md
+          {
+            echo "## Release ${NEW_TAG}"
+            if [ "$LATEST_TAG" != "0.0.0" ]; then
+              echo
+              echo "Comparação: ${LATEST_TAG} -> ${NEW_TAG}"
+            fi
+            echo
+
+            [ -s "$FEAT_FILE" ] && { echo "### Features"; cat "$FEAT_FILE"; echo; }
+            [ -s "$FIX_FILE" ] && { echo "### Bug Fixes"; cat "$FIX_FILE"; echo; }
+            [ -s "$CI_FILE" ] && { echo "### Continuous Integration"; cat "$CI_FILE"; echo; }
+            [ -s "$PERF_FILE" ] && { echo "### Performance"; cat "$PERF_FILE"; echo; }
+            [ -s "$REFACTOR_FILE" ] && { echo "### Refactor"; cat "$REFACTOR_FILE"; echo; }
+            [ -s "$DOCS_FILE" ] && { echo "### Documentation"; cat "$DOCS_FILE"; echo; }
+            [ -s "$TEST_FILE" ] && { echo "### Tests"; cat "$TEST_FILE"; echo; }
+            [ -s "$BUILD_FILE" ] && { echo "### Build"; cat "$BUILD_FILE"; echo; }
+            [ -s "$DEPS_FILE" ] && { echo "### Dependencies"; cat "$DEPS_FILE"; echo; }
+            [ -s "$CONFIG_FILE" ] && { echo "### Configuration"; cat "$CONFIG_FILE"; echo; }
+            [ -s "$STYLE_FILE" ] && { echo "### Style"; cat "$STYLE_FILE"; echo; }
+            [ -s "$CHORE_FILE" ] && { echo "### Chore"; cat "$CHORE_FILE"; echo; }
+            [ -s "$REVERT_FILE" ] && { echo "### Reverts"; cat "$REVERT_FILE"; echo; }
+            [ -s "$OTHER_FILE" ] && { echo "### Others"; cat "$OTHER_FILE"; echo; }
+          } > "$NOTES_FILE"
+
+          BODY_JSON=$(jq -Rs . < "$NOTES_FILE")
+          echo "body_json=${BODY_JSON}" >> "$GITHUB_OUTPUT"
 
       - name: Create tag and push release
         if: steps.semver.outputs.bump != 'none'
@@ -141,12 +237,12 @@ jobs:
 
           OWNER=$(echo "${GITHUB_REPOSITORY}" | cut -d"/" -f1)
           REPO=$(echo "${GITHUB_REPOSITORY}" | cut -d"/" -f2)
-          BODY="Automated release $NEW_TAG\n\nTriggered by automated CI."
+          BODY_JSON='${{ steps.notes.outputs.body_json }}'
 
           echo "Creating release for $NEW_TAG"
           response=$(curl -s -X POST -H "Authorization: Bearer $GITHUB_TOKEN" -H "Accept: application/vnd.github+json" \
             https://api.github.com/repos/${OWNER}/${REPO}/releases \
-            -d "{\"tag_name\": \"${NEW_TAG}\", \"name\": \"${NEW_TAG}\", \"body\": \"${BODY}\", \"draft\": false, \"prerelease\": false}")
+            -d "{\"tag_name\": \"${NEW_TAG}\", \"name\": \"${NEW_TAG}\", \"body\": ${BODY_JSON}, \"draft\": false, \"prerelease\": false}")
 
           echo "$response" | jq -r '.html_url // .message'
 
