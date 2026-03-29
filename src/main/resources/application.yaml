@@ -25,7 +25,17 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health
   endpoint:
     health:
-      show-details: when-authorized
+      probes:
+        enabled: true
+      show-details: never
+
+logging:
+  level:
+    root: INFO
+    io.github.juli0mendes.walletmanagement: INFO
+    org.springframework.web: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} [%thread] %-5level %logger{36} - %msg%n"

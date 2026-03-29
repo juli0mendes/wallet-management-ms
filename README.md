@@ -2,7 +2,7 @@
 
 A production-grade digital wallet management microservice built with Spring Boot, following Clean Architecture and Domain-Driven Design principles. Supports wallet creation, deposits, withdrawals, and transfers with persistent storage in MongoDB.
 
-**Status**: ✅ Stage 3 (Domain + MongoDB Persistence) - Complete and Production Ready
+**Status**: ✅ Production-ready API (MongoDB persistence, Actuator health checks, Docker support)
 
 ## Quick Start
 
@@ -46,6 +46,86 @@ mvn spring-boot:run
 ```
 
 The application will start on `http://localhost:8080/api/v1`
+
+### 4. Health Check (Actuator)
+
+Only the health endpoint is exposed for operational checks:
+
+```bash
+curl http://localhost:8080/actuator/health
+```
+
+Expected output:
+
+```json
+{"status":"UP"}
+```
+
+## Run with Docker
+
+Use this approach when you want to run the app image built from the project's `Dockerfile` and keep MongoDB running from the existing `docker-compose` setup.
+
+### Full flow (Mongo via docker-compose + app via Dockerfile)
+
+1) Start MongoDB with compose:
+
+```bash
+cd docker
+docker compose up -d
+cd ..
+```
+
+2) Build the application image from `Dockerfile`:
+
+```bash
+docker build -t wallet-management-ms:latest .
+```
+
+3) Run the application container:
+
+```bash
+docker run --rm -p 8080:8080 \
+  -e MONGODB_URI='mongodb://walletadmin:walletpass@host.docker.internal:27017/wallet_management?authSource=admin' \
+  --name wallet-management-ms \
+  wallet-management-ms:latest
+```
+
+4) Validate health endpoint:
+
+```bash
+curl http://localhost:8080/actuator/health
+```
+
+5) Stop everything when done:
+
+```bash
+docker stop wallet-management-ms
+cd docker
+docker compose down
+```
+
+> Linux note: if `host.docker.internal` is not available, use your Docker host gateway/IP in `MONGODB_URI`.
+
+### Build image
+
+```bash
+docker build -t wallet-management-ms:latest .
+```
+
+### Run container
+
+```bash
+docker run --rm -p 8080:8080 \
+  -e MONGODB_URI='mongodb://walletadmin:walletpass@host.docker.internal:27017/wallet_management?authSource=admin' \
+  --name wallet-management-ms \
+  wallet-management-ms:latest
+```
+
+After startup, validate health:
+
+```bash
+curl http://localhost:8080/actuator/health
+```
 
 ## API Endpoints
 
@@ -137,6 +217,24 @@ src/main/java/io/github/juli0mendes/walletmanagement/
 ✅ **Embedded MongoDB for unit tests** (in-memory persistence)  
 ✅ Proper HTTP status codes  
 ✅ High test coverage (>95% on domain + persistence layers)  
+✅ Spring Actuator health endpoint exposure (`/actuator/health`)  
+✅ Structured operational logs on controllers and exception handling  
+✅ Multi-stage Docker image for portable execution  
+
+## Observability
+
+- **Health endpoint**: `/actuator/health`
+- **Exposed Actuator endpoints**: health only
+- **Default log level**: `INFO` (application), `WARN` (Spring Web)
+- **Where logs are generated**:
+  - Request lifecycle in wallet and transfer controllers
+  - Validation/business/runtime exceptions in global exception handler
+
+To inspect container logs:
+
+```bash
+docker logs -f wallet-management-ms
+```
 
 ## Data Storage
 
@@ -179,9 +277,11 @@ HTTP Status Codes:
 - **Java 21**
 - **Spring Boot 3.4.5**
 - **Spring Data MongoDB**
+- **Spring Boot Actuator**
 - **MongoDB 7.0** (Docker)
 - **de.flapdoodle.embed.mongo** (Embedded MongoDB for tests)
 - **Maven**
+- **Docker**
 - **Jackson**
 - **Jakarta Validation**
 - **JUnit 5 + Mockito**
@@ -238,6 +338,60 @@ HTTP Status Codes:
 - **Immutability**: Java Records for DTOs ensure thread safety and reduce bugs
 - **Test Coverage**: >95% on domain and infrastructure persistence layers
 - **Production-Ready**: Enterprise-grade implementation with proper error handling, logging, and validation
+
+## Design Decisions and Requirement Mapping
+
+This section explains the main design choices and how they address functional and non-functional requirements.
+
+### Functional requirements
+
+- **Wallet lifecycle and money movement (`/wallets`, `/transfers`)**
+  - Decision: use explicit use cases (`CreateWalletUseCase`, `DepositUseCase`, `WithdrawUseCase`, `TransferUseCase`) with a domain-centric model.
+  - Why: keeps business rules (amount validation, insufficient balance handling, transfer consistency) centralized and testable.
+
+- **Historical balance and transaction traceability**
+  - Decision: persist wallet state and transaction ledger separately in MongoDB (`wallets` + `transactions`).
+  - Why: enables reconstruction of account history and audit-friendly transaction listing per wallet.
+
+- **Input and business validation**
+  - Decision: combine Jakarta Validation at DTO boundary with domain exceptions in core model.
+  - Why: invalid input is rejected early (`400`), and domain invariants are enforced consistently (`422` for insufficient balance).
+
+### Non-functional requirements
+
+- **Maintainability and extensibility**
+  - Decision: apply Clean Architecture + DDD layering (domain, application, infrastructure, controller).
+  - Why: business logic is isolated from frameworks and storage details, reducing coupling and easing future changes.
+
+- **Operational reliability and diagnosability**
+  - Decision: expose Spring Actuator health endpoint only (`/actuator/health`) and add structured logs in controllers/exception handler.
+  - Why: enables safe runtime monitoring and faster incident triage with minimal operational surface.
+
+- **Portability and environment consistency**
+  - Decision: provide multi-stage `Dockerfile` and documented Mongo startup via `docker-compose`.
+  - Why: standardizes execution across machines with reduced local setup variability.
+
+## Trade-offs and Time Constraints
+
+Given time constraints, some capabilities were prioritized while others were deferred.
+
+- **BDD/E2E automation (Cucumber/Testcontainers)**
+  - Trade-off: current coverage emphasizes unit + integration tests and functional API validation scripts.
+  - Deferred: a full BDD suite with Cucumber scenarios and Testcontainers-managed dependencies.
+
+- **Load and performance testing**
+  - Trade-off: correctness and API contract validation were prioritized.
+  - Deferred: dedicated performance baselines (throughput, latency percentiles, stress and soak tests).
+
+- **Resilience and chaos-style validation**
+  - Trade-off: health checks and error handling are in place, but advanced resilience experiments were not included.
+  - Deferred: fault injection, dependency degradation tests, and formal recovery SLO validation.
+
+- **Operational hardening depth**
+  - Trade-off: health and logging are implemented with conservative defaults.
+  - Deferred: broader observability stack (metrics dashboards, tracing, alert rules) and stricter production profiles.
+
+These trade-offs do not block functional correctness, but they are recommended next steps before high-scale production rollout.
 
 ## Running Tests
 

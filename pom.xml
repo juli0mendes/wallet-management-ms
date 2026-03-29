@@ -48,6 +48,12 @@
 			<artifactId>spring-boot-starter-data-mongodb</artifactId>
 		</dependency>
 
+		<!-- Actuator (health checks and operational endpoints) -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-actuator</artifactId>
+		</dependency>
+
 		<!-- Embedded MongoDB for testing (Spring Boot 3.x-compatible auto-configuration) -->
 		<dependency>
 			<groupId>de.flapdoodle.embed</groupId>
