@@ -17,11 +17,6 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/**
- * Integration tests for MongoWalletRepository using embedded MongoDB.
- * These tests verify real MongoDB persistence through the domain adapter,
- * including mapper and document transformations.
- */
 @DataMongoTest
 @DisplayName("MongoWalletRepository Integration Tests with Embedded MongoDB")
 class MongoWalletRepositoryTest {

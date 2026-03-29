@@ -50,7 +50,7 @@ class TransferUseCaseTest {
 
         when(walletRepository.findById(sourceWalletId)).thenReturn(Optional.of(sourceWallet));
         when(walletRepository.findById(destinationWalletId)).thenReturn(Optional.of(destWallet));
-        when(walletRepository.save(any(Wallet.class))).thenReturn(sourceWallet, destWallet); // First call for source, second for dest
+        when(walletRepository.save(any(Wallet.class))).thenReturn(sourceWallet, destWallet);
         when(transactionRepository.save(any(Transaction.class))).thenReturn(new Transaction(UUID.randomUUID(), sourceWalletId, TransactionType.TRANSFER_OUT, BigDecimal.valueOf(100.00), BigDecimal.valueOf(100.00), "Test transfer", now));
 
         TransferResponse response = transferUseCase.execute(request);

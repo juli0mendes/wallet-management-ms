@@ -15,10 +15,6 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/**
- * Integration tests for WalletDataRepository with embedded MongoDB.
- * Tests CRUD operations and basic queries on WalletDocument.
- */
 @DataMongoTest
 @DisplayName("WalletDataRepository Integration Tests with Embedded MongoDB")
 class WalletDataRepositoryTest {
