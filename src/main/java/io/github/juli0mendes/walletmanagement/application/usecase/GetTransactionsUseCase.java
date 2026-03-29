@@ -34,7 +34,7 @@ public class GetTransactionsUseCase {
         return new TransactionResponse(
                 tx.getId(),
                 tx.getWalletId(),
-                tx.getType(),
+                tx.getType().getValue(),
                 tx.getAmount(),
                 tx.getBalanceAfter(),
                 tx.getDescription(),
