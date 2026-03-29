@@ -1,0 +1,11 @@
+spring:
+  data:
+    mongodb:
+      uri: ""
+      database: wallet_management_test
+
+de:
+  flapdoodle:
+    mongodb:
+      embedded:
+        version: 7.0.2
