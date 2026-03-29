@@ -1,4 +1,4 @@
-package com.walletmanagement.domain.exception;
+package io.github.juli0mendes.walletmanagement.domain.exception;
 
 public class InvalidWalletException extends RuntimeException {
 

@@ -12,7 +12,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class TransferRequestTest {
 
     @Test
-    @DisplayName("Should test TransferRequest getters and setters")
+    @DisplayName("Should expose TransferRequest record accessors")
     void shouldTestTransferRequest() {
         var sourceWalletId = UUID.randomUUID();
         var destinationWalletId = UUID.randomUUID();
@@ -21,24 +21,9 @@ class TransferRequestTest {
 
         var request = new TransferRequest(sourceWalletId, destinationWalletId, amount, description);
 
-        assertEquals(sourceWalletId, request.getSourceWalletId());
-        assertEquals(destinationWalletId, request.getDestinationWalletId());
-        assertEquals(amount, request.getAmount());
-        assertEquals(description, request.getDescription());
-
-        var newSourceWalletId = UUID.randomUUID();
-        var newDestinationWalletId = UUID.randomUUID();
-        var newAmount = BigDecimal.valueOf(75.00);
-        var newDescription = "Updated transfer";
-
-        request.setSourceWalletId(newSourceWalletId);
-        request.setDestinationWalletId(newDestinationWalletId);
-        request.setAmount(newAmount);
-        request.setDescription(newDescription);
-
-        assertEquals(newSourceWalletId, request.getSourceWalletId());
-        assertEquals(newDestinationWalletId, request.getDestinationWalletId());
-        assertEquals(newAmount, request.getAmount());
-        assertEquals(newDescription, request.getDescription());
+        assertEquals(sourceWalletId, request.sourceWalletId());
+        assertEquals(destinationWalletId, request.destinationWalletId());
+        assertEquals(amount, request.amount());
+        assertEquals(description, request.description());
     }
 }

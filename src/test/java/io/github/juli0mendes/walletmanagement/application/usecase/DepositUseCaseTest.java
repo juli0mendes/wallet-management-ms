@@ -3,6 +3,7 @@ package io.github.juli0mendes.walletmanagement.application.usecase;
 import io.github.juli0mendes.walletmanagement.domain.model.Transaction;
 import io.github.juli0mendes.walletmanagement.domain.model.TransactionType;
 import io.github.juli0mendes.walletmanagement.domain.model.Wallet;
+import io.github.juli0mendes.walletmanagement.domain.repository.TransactionRepository;
 import io.github.juli0mendes.walletmanagement.domain.repository.WalletRepository;
 import io.github.juli0mendes.walletmanagement.dto.DepositRequest;
 import io.github.juli0mendes.walletmanagement.dto.TransactionResponse;
@@ -30,6 +31,9 @@ class DepositUseCaseTest {
     @Mock
     private WalletRepository walletRepository;
 
+    @Mock
+    private TransactionRepository transactionRepository;
+
     @InjectMocks
     private DepositUseCase depositUseCase;
 
@@ -45,15 +49,15 @@ class DepositUseCaseTest {
 
         when(walletRepository.findById(walletId)).thenReturn(Optional.of(wallet));
         when(walletRepository.save(any(Wallet.class))).thenReturn(updatedWallet);
-        when(walletRepository.saveTransaction(any(Transaction.class))).thenReturn(transaction);
+        when(transactionRepository.save(any(Transaction.class))).thenReturn(transaction);
 
         TransactionResponse response = depositUseCase.execute(walletId, request);
 
         assertNotNull(response);
-        assertEquals(walletId, response.getWalletId());
-        assertEquals("DEPOSIT", response.getType());
-        assertEquals(BigDecimal.valueOf(50.00), response.getAmount());
-        assertEquals(BigDecimal.valueOf(150.00), response.getBalanceAfter());
+        assertEquals(walletId, response.walletId());
+        assertEquals("DEPOSIT", response.type());
+        assertEquals(BigDecimal.valueOf(50.00), response.amount());
+        assertEquals(BigDecimal.valueOf(150.00), response.balanceAfter());
     }
 
     @Test

@@ -9,23 +9,14 @@ import static org.junit.jupiter.api.Assertions.*;
 class CreateWalletRequestTest {
 
     @Test
-    @DisplayName("Should test CreateWalletRequest getters and setters")
+    @DisplayName("Should expose CreateWalletRequest record accessors")
     void shouldTestCreateWalletRequest() {
         var ownerName = "John Doe";
         var ownerEmail = "john@example.com";
 
         var request = new CreateWalletRequest(ownerName, ownerEmail);
 
-        assertEquals(ownerName, request.getOwnerName());
-        assertEquals(ownerEmail, request.getOwnerEmail());
-
-        var newName = "Jane Doe";
-        var newEmail = "jane@example.com";
-
-        request.setOwnerName(newName);
-        request.setOwnerEmail(newEmail);
-
-        assertEquals(newName, request.getOwnerName());
-        assertEquals(newEmail, request.getOwnerEmail());
+        assertEquals(ownerName, request.ownerName());
+        assertEquals(ownerEmail, request.ownerEmail());
     }
 }

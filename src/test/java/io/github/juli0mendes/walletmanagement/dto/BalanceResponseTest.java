@@ -12,7 +12,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class BalanceResponseTest {
 
     @Test
-    @DisplayName("Should test BalanceResponse getters and setters")
+    @DisplayName("Should expose BalanceResponse record accessors")
     void shouldTestBalanceResponse() {
         var balance = BigDecimal.valueOf(100.50);
         var currency = "USD";
@@ -20,20 +20,8 @@ class BalanceResponseTest {
 
         var response = new BalanceResponse(balance, currency, retrievedAt);
 
-        assertEquals(balance, response.getCurrentBalance());
-        assertEquals(currency, response.getCurrency());
-        assertEquals(retrievedAt, response.getRetrievedAt());
-
-        var newBalance = BigDecimal.valueOf(200.00);
-        var newCurrency = "EUR";
-        var newRetrievedAt = LocalDateTime.now().plusHours(1);
-
-        response.setCurrentBalance(newBalance);
-        response.setCurrency(newCurrency);
-        response.setRetrievedAt(newRetrievedAt);
-
-        assertEquals(newBalance, response.getCurrentBalance());
-        assertEquals(newCurrency, response.getCurrency());
-        assertEquals(newRetrievedAt, response.getRetrievedAt());
+        assertEquals(balance, response.currentBalance());
+        assertEquals(currency, response.currency());
+        assertEquals(retrievedAt, response.retrievedAt());
     }
 }

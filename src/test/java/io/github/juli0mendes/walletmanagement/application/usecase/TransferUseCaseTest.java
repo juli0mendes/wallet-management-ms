@@ -1,8 +1,10 @@
 package io.github.juli0mendes.walletmanagement.application.usecase;
 
+import io.github.juli0mendes.walletmanagement.domain.exception.InsufficientBalanceException;
 import io.github.juli0mendes.walletmanagement.domain.model.Transaction;
 import io.github.juli0mendes.walletmanagement.domain.model.TransactionType;
 import io.github.juli0mendes.walletmanagement.domain.model.Wallet;
+import io.github.juli0mendes.walletmanagement.domain.repository.TransactionRepository;
 import io.github.juli0mendes.walletmanagement.domain.repository.WalletRepository;
 import io.github.juli0mendes.walletmanagement.dto.TransferRequest;
 import io.github.juli0mendes.walletmanagement.dto.TransferResponse;
@@ -30,6 +32,9 @@ class TransferUseCaseTest {
     @Mock
     private WalletRepository walletRepository;
 
+    @Mock
+    private TransactionRepository transactionRepository;
+
     @InjectMocks
     private TransferUseCase transferUseCase;
 
@@ -46,7 +51,7 @@ class TransferUseCaseTest {
         when(walletRepository.findById(sourceWalletId)).thenReturn(Optional.of(sourceWallet));
         when(walletRepository.findById(destinationWalletId)).thenReturn(Optional.of(destWallet));
         when(walletRepository.save(any(Wallet.class))).thenReturn(sourceWallet, destWallet); // First call for source, second for dest
-        when(walletRepository.saveTransaction(any(Transaction.class))).thenReturn(new Transaction(UUID.randomUUID(), sourceWalletId, TransactionType.TRANSFER_OUT, BigDecimal.valueOf(100.00), BigDecimal.valueOf(100.00), "Test transfer", now));
+        when(transactionRepository.save(any(Transaction.class))).thenReturn(new Transaction(UUID.randomUUID(), sourceWalletId, TransactionType.TRANSFER_OUT, BigDecimal.valueOf(100.00), BigDecimal.valueOf(100.00), "Test transfer", now));
 
         TransferResponse response = transferUseCase.execute(request);
 
@@ -85,8 +90,8 @@ class TransferUseCaseTest {
     }
 
     @Test
-    @DisplayName("Should throw IllegalArgumentException when insufficient balance")
-    void shouldThrowIllegalArgumentExceptionWhenInsufficientBalance() {
+    @DisplayName("Should throw InsufficientBalanceException when insufficient balance")
+    void shouldThrowInsufficientBalanceExceptionWhenInsufficientBalance() {
         var sourceWalletId = UUID.randomUUID();
         var destinationWalletId = UUID.randomUUID();
         var now = LocalDateTime.now();
@@ -97,6 +102,6 @@ class TransferUseCaseTest {
         when(walletRepository.findById(sourceWalletId)).thenReturn(Optional.of(sourceWallet));
         when(walletRepository.findById(destinationWalletId)).thenReturn(Optional.of(destWallet));
 
-        assertThrows(IllegalArgumentException.class, () -> transferUseCase.execute(request));
+        assertThrows(InsufficientBalanceException.class, () -> transferUseCase.execute(request));
     }
 }

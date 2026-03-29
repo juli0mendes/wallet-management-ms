@@ -42,11 +42,11 @@ class CreateWalletUseCaseTest {
         WalletResponse response = createWalletUseCase.execute(request);
 
         assertNotNull(response);
-        assertEquals(walletId, response.getWalletId());
-        assertEquals("John Doe", response.getOwnerName());
-        assertEquals("john@example.com", response.getOwnerEmail());
-        assertEquals(BigDecimal.ZERO, response.getCurrentBalance());
-        assertEquals(now, response.getCreatedAt());
-        assertEquals(now, response.getUpdatedAt());
+        assertEquals(walletId, response.walletId());
+        assertEquals("John Doe", response.ownerName());
+        assertEquals("john@example.com", response.ownerEmail());
+        assertEquals(BigDecimal.ZERO, response.currentBalance());
+        assertEquals(now, response.createdAt());
+        assertEquals(now, response.updatedAt());
     }
 }

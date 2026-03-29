@@ -13,7 +13,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class TransactionResponseTest {
 
     @Test
-    @DisplayName("Should test TransactionResponse getters and setters")
+    @DisplayName("Should expose TransactionResponse record accessors")
     void shouldTestTransactionResponse() {
         var transactionId = UUID.randomUUID();
         var walletId = UUID.randomUUID();
@@ -25,36 +25,12 @@ class TransactionResponseTest {
 
         var response = new TransactionResponse(transactionId, walletId, type, amount, balanceAfter, description, createdAt);
 
-        assertEquals(transactionId, response.getTransactionId());
-        assertEquals(walletId, response.getWalletId());
-        assertEquals(type, response.getType());
-        assertEquals(amount, response.getAmount());
-        assertEquals(balanceAfter, response.getBalanceAfter());
-        assertEquals(description, response.getDescription());
-        assertEquals(createdAt, response.getCreatedAt());
-
-        var newTransactionId = UUID.randomUUID();
-        var newWalletId = UUID.randomUUID();
-        var newType = "WITHDRAW";
-        var newAmount = BigDecimal.valueOf(25.00);
-        var newBalanceAfter = BigDecimal.valueOf(125.00);
-        var newDescription = "Updated transaction";
-        var newCreatedAt = LocalDateTime.now().plusMinutes(5);
-
-        response.setTransactionId(newTransactionId);
-        response.setWalletId(newWalletId);
-        response.setType(newType);
-        response.setAmount(newAmount);
-        response.setBalanceAfter(newBalanceAfter);
-        response.setDescription(newDescription);
-        response.setCreatedAt(newCreatedAt);
-
-        assertEquals(newTransactionId, response.getTransactionId());
-        assertEquals(newWalletId, response.getWalletId());
-        assertEquals(newType, response.getType());
-        assertEquals(newAmount, response.getAmount());
-        assertEquals(newBalanceAfter, response.getBalanceAfter());
-        assertEquals(newDescription, response.getDescription());
-        assertEquals(newCreatedAt, response.getCreatedAt());
+        assertEquals(transactionId, response.transactionId());
+        assertEquals(walletId, response.walletId());
+        assertEquals(type, response.type());
+        assertEquals(amount, response.amount());
+        assertEquals(balanceAfter, response.balanceAfter());
+        assertEquals(description, response.description());
+        assertEquals(createdAt, response.createdAt());
     }
 }

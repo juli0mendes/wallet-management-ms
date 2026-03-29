@@ -1,5 +1,7 @@
 package io.github.juli0mendes.walletmanagement.exception;
 
+import io.github.juli0mendes.walletmanagement.domain.exception.InsufficientBalanceException;
+import io.github.juli0mendes.walletmanagement.domain.exception.InvalidWalletException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -13,6 +15,28 @@ import java.util.Map;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(InvalidWalletException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidWallet(
+            InvalidWalletException ex, WebRequest request) {
+        ErrorResponse errorResponse = new ErrorResponse(
+                "INVALID_WALLET",
+                ex.getMessage(),
+                request.getDescription(false).replace("uri=", "")
+        );
+        return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(InsufficientBalanceException.class)
+    public ResponseEntity<ErrorResponse> handleInsufficientBalance(
+            InsufficientBalanceException ex, WebRequest request) {
+        ErrorResponse errorResponse = new ErrorResponse(
+                "INSUFFICIENT_BALANCE",
+                ex.getMessage(),
+                request.getDescription(false).replace("uri=", "")
+        );
+        return new ResponseEntity<>(errorResponse, HttpStatus.UNPROCESSABLE_ENTITY);
+    }
 
     @ExceptionHandler(WalletNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleWalletNotFound(
