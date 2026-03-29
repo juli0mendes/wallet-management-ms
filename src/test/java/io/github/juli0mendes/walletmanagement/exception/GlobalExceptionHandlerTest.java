@@ -23,15 +23,12 @@ class GlobalExceptionHandlerTest {
     @Test
     @DisplayName("Should handle WalletNotFoundException correctly")
     void shouldHandleWalletNotFoundExceptionCorrectly() {
-        // Given
         var walletId = UUID.randomUUID();
         var exception = new WalletNotFoundException(walletId.toString());
         var request = createMockWebRequest("/api/v1/test/wallet-not-found/" + walletId);
 
-        // When
         var response = exceptionHandler.handleWalletNotFound(exception, request);
 
-        // Then
         assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
         assertNotNull(response.getBody());
         assertEquals("WALLET_NOT_FOUND", response.getBody().getErrorCode());
@@ -43,16 +40,13 @@ class GlobalExceptionHandlerTest {
     @Test
     @DisplayName("Should handle validation exceptions correctly")
     void shouldHandleValidationExceptionsCorrectly() {
-        // Given
         var bindingResult = new BeanPropertyBindingResult(new Object(), "testObject");
         bindingResult.addError(new FieldError("testObject", "testField", "Test validation error"));
         var exception = new MethodArgumentNotValidException(null, bindingResult);
         var request = createMockWebRequest("/api/v1/test/validation-error");
 
-        // When
         var response = exceptionHandler.handleValidationException(exception, request);
 
-        // Then
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         assertNotNull(response.getBody());
         assertEquals("VALIDATION_ERROR", response.getBody().get("error_code"));
@@ -67,17 +61,14 @@ class GlobalExceptionHandlerTest {
     @Test
     @DisplayName("Should handle validation exceptions with multiple errors")
     void shouldHandleValidationExceptionsWithMultipleErrors() {
-        // Given
         var bindingResult = new BeanPropertyBindingResult(new Object(), "testObject");
         bindingResult.addError(new FieldError("testObject", "field1", "Error 1"));
         bindingResult.addError(new FieldError("testObject", "field2", "Error 2"));
         var exception = new MethodArgumentNotValidException(null, bindingResult);
         var request = createMockWebRequest("/api/v1/test/validation-error");
 
-        // When
         var response = exceptionHandler.handleValidationException(exception, request);
 
-        // Then
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         @SuppressWarnings("unchecked")
         var errors = (java.util.Map<String, String>) response.getBody().get("errors");
@@ -89,14 +80,11 @@ class GlobalExceptionHandlerTest {
     @Test
     @DisplayName("Should handle generic exceptions correctly")
     void shouldHandleGenericExceptionsCorrectly() {
-        // Given
         var exception = new RuntimeException("Test generic error");
         var request = createMockWebRequest("/api/v1/test/generic-error");
 
-        // When
         var response = exceptionHandler.handleGlobalException(exception, request);
 
-        // Then
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
         assertNotNull(response.getBody());
         assertEquals("INTERNAL_SERVER_ERROR", response.getBody().getErrorCode());
@@ -108,14 +96,11 @@ class GlobalExceptionHandlerTest {
     @Test
     @DisplayName("Should handle null pointer exception as generic exception")
     void shouldHandleNullPointerExceptionAsGenericException() {
-        // Given
         var exception = new NullPointerException("Null pointer test");
         var request = createMockWebRequest("/api/v1/test/null-error");
 
-        // When
         var response = exceptionHandler.handleGlobalException(exception, request);
 
-        // Then
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
         assertEquals("INTERNAL_SERVER_ERROR", response.getBody().getErrorCode());
         assertEquals("An unexpected error occurred", response.getBody().getMessage());
@@ -124,15 +109,12 @@ class GlobalExceptionHandlerTest {
     @Test
     @DisplayName("Should handle WalletNotFoundException with custom message")
     void shouldHandleWalletNotFoundExceptionWithCustomMessage() {
-        // Given
         var customMessage = "Custom wallet not found message";
         var exception = new WalletNotFoundException(customMessage, null);
         var request = createMockWebRequest("/api/v1/test/custom-error");
 
-        // When
         var response = exceptionHandler.handleWalletNotFound(exception, request);
 
-        // Then
         assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
         assertEquals("WALLET_NOT_FOUND", response.getBody().getErrorCode());
         assertEquals(customMessage, response.getBody().getMessage());
@@ -141,15 +123,12 @@ class GlobalExceptionHandlerTest {
     @Test
     @DisplayName("Should handle validation exception with empty binding result")
     void shouldHandleValidationExceptionWithEmptyBindingResult() {
-        // Given
         var bindingResult = new BeanPropertyBindingResult(new Object(), "emptyObject");
         var exception = new MethodArgumentNotValidException(null, bindingResult);
         var request = createMockWebRequest("/api/v1/test/empty-validation");
 
-        // When
         var response = exceptionHandler.handleValidationException(exception, request);
 
-        // Then
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         @SuppressWarnings("unchecked")
         var errors = (java.util.Map<String, String>) response.getBody().get("errors");
