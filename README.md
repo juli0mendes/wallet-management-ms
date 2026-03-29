@@ -7,12 +7,41 @@ A digital wallet management microservice built with Spring Boot, implementing wa
 
 ## Quick Start
 
-### Build
+### Requirements
+- Docker Desktop (or Docker Engine + Compose plugin)
+- Java 21
+- Maven
+
+### 1. Start MongoDB (Docker)
+```bash
+cd docker
+docker compose up -d
+```
+
+MongoDB will be available at `localhost:27017`.
+
+Connection URI used by the application:
+```text
+mongodb://walletadmin:walletpass@localhost:27017/wallet_management?authSource=admin
+```
+
+To override the URI at runtime:
+```bash
+export MONGODB_URI='mongodb://walletadmin:walletpass@localhost:27017/wallet_management?authSource=admin'
+```
+
+### Stop MongoDB
+```bash
+cd docker
+docker compose down
+```
+
+### 2. Build
 ```bash
 mvn clean package -DskipTests
 ```
 
-### Run
+### 3. Run
 ```bash
 mvn spring-boot:run
 ```
