@@ -202,4 +202,66 @@ class WalletTest {
 
         assertTrue(wallet.getUpdatedAt().isAfter(beforeWithdraw) || wallet.getUpdatedAt().isEqual(beforeWithdraw));
     }
+
+    @Test
+    @DisplayName("Should expose createdAt via getter")
+    void shouldExposeCreatedAtViaGetter() {
+        Wallet wallet = new Wallet(UUID.randomUUID(), "John", "john@example.com", BigDecimal.ZERO, NOW, NOW);
+        assertEquals(NOW, wallet.getCreatedAt());
+    }
+
+    @Test
+    @DisplayName("Should expose updatedAt via getter")
+    void shouldExposeUpdatedAtViaGetter() {
+        Wallet wallet = new Wallet(UUID.randomUUID(), "John", "john@example.com", BigDecimal.ZERO, NOW, NOW);
+        assertEquals(NOW, wallet.getUpdatedAt());
+    }
+
+    @Test
+    @DisplayName("Should set balance directly via setBalance")
+    void shouldSetBalanceDirectlyViaSetBalance() {
+        Wallet wallet = new Wallet(UUID.randomUUID(), "John", "john@example.com", BigDecimal.ZERO, NOW, NOW);
+        wallet.setBalance(new BigDecimal("999.99"));
+        assertEquals(new BigDecimal("999.99"), wallet.getBalance());
+    }
+
+    @Test
+    @DisplayName("Should trim owner name with leading and trailing spaces")
+    void shouldTrimOwnerNameWithLeadingAndTrailingSpaces() {
+        Wallet wallet = new Wallet(UUID.randomUUID(), "  Alice  ", "alice@example.com", BigDecimal.ZERO, NOW, NOW);
+        assertEquals("Alice", wallet.getOwnerName());
+    }
+
+    @Test
+    @DisplayName("Should accept exactly 3 character owner name")
+    void shouldAcceptExactlyThreeCharacterOwnerName() {
+        Wallet wallet = new Wallet(UUID.randomUUID(), "Ana", "ana@example.com", BigDecimal.ZERO, NOW, NOW);
+        assertEquals("Ana", wallet.getOwnerName());
+    }
+
+    @Test
+    @DisplayName("Should allow withdraw of exact balance leaving zero")
+    void shouldAllowWithdrawOfExactBalance() {
+        Wallet wallet = new Wallet(UUID.randomUUID(), "John", "john@example.com", new BigDecimal("50.00"), NOW, NOW);
+        wallet.withdraw(new BigDecimal("50.00"));
+        assertEquals(0, wallet.getBalance().compareTo(BigDecimal.ZERO));
+    }
+
+    @Test
+    @DisplayName("Should accumulate multiple deposits correctly")
+    void shouldAccumulateMultipleDepositsCorrectly() {
+        Wallet wallet = new Wallet(UUID.randomUUID(), "John", "john@example.com", BigDecimal.ZERO, NOW, NOW);
+        wallet.deposit(new BigDecimal("30.00"));
+        wallet.deposit(new BigDecimal("20.00"));
+        assertEquals(new BigDecimal("50.00"), wallet.getBalance());
+    }
+
+    @Test
+    @DisplayName("Should reflect correct balance after multiple operations")
+    void shouldReflectCorrectBalanceAfterMultipleOperations() {
+        Wallet wallet = new Wallet(UUID.randomUUID(), "John", "john@example.com", new BigDecimal("100.00"), NOW, NOW);
+        wallet.deposit(new BigDecimal("50.00"));
+        wallet.withdraw(new BigDecimal("30.00"));
+        assertEquals(new BigDecimal("120.00"), wallet.getBalance());
+    }
 }
