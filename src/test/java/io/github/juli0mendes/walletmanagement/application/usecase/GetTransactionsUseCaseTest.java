@@ -3,6 +3,7 @@ package io.github.juli0mendes.walletmanagement.application.usecase;
 import io.github.juli0mendes.walletmanagement.domain.model.Transaction;
 import io.github.juli0mendes.walletmanagement.domain.model.TransactionType;
 import io.github.juli0mendes.walletmanagement.domain.model.Wallet;
+import io.github.juli0mendes.walletmanagement.domain.repository.TransactionRepository;
 import io.github.juli0mendes.walletmanagement.domain.repository.WalletRepository;
 import io.github.juli0mendes.walletmanagement.dto.TransactionResponse;
 import io.github.juli0mendes.walletmanagement.exception.WalletNotFoundException;
@@ -29,6 +30,9 @@ class GetTransactionsUseCaseTest {
     @Mock
     private WalletRepository walletRepository;
 
+    @Mock
+    private TransactionRepository transactionRepository;
+
     @InjectMocks
     private GetTransactionsUseCase getTransactionsUseCase;
 
@@ -44,14 +48,14 @@ class GetTransactionsUseCaseTest {
         );
 
         when(walletRepository.findById(walletId)).thenReturn(Optional.of(wallet));
-        when(walletRepository.findTransactionsByWalletId(walletId)).thenReturn(transactions);
+        when(transactionRepository.findByWalletId(walletId)).thenReturn(transactions);
 
         List<TransactionResponse> responses = getTransactionsUseCase.execute(walletId);
 
         assertNotNull(responses);
         assertEquals(2, responses.size());
-        assertEquals("DEPOSIT", responses.get(0).getType());
-        assertEquals("WITHDRAW", responses.get(1).getType());
+        assertEquals("DEPOSIT", responses.get(0).type());
+        assertEquals("WITHDRAW", responses.get(1).type());
     }
 
     @Test

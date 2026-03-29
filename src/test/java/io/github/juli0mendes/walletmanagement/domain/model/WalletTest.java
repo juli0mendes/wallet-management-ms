@@ -1,5 +1,7 @@
 package io.github.juli0mendes.walletmanagement.domain.model;
 
+import io.github.juli0mendes.walletmanagement.domain.exception.InsufficientBalanceException;
+import io.github.juli0mendes.walletmanagement.domain.exception.InvalidWalletException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -12,16 +14,17 @@ import static org.junit.jupiter.api.Assertions.*;
 @DisplayName("Wallet Domain Model Unit Tests")
 class WalletTest {
 
+    private static final LocalDateTime NOW = LocalDateTime.now();
+
     @Test
     @DisplayName("Should create wallet successfully with valid parameters")
     void shouldCreateWalletSuccessfully() {
-        var id = UUID.randomUUID();
-        var ownerName = "John Doe";
-        var ownerEmail = "john@example.com";
-        var balance = BigDecimal.valueOf(100.00);
-        var now = LocalDateTime.now();
+        UUID id = UUID.randomUUID();
+        String ownerName = "John Doe";
+        String ownerEmail = "john@example.com";
+        BigDecimal balance = new BigDecimal("100.00");
 
-        var wallet = new Wallet(id, ownerName, ownerEmail, balance, now, now);
+        Wallet wallet = new Wallet(id, ownerName, ownerEmail, balance, NOW, NOW);
 
         assertEquals(id, wallet.getId());
         assertEquals(ownerName, wallet.getOwnerName());
@@ -30,157 +33,235 @@ class WalletTest {
     }
 
     @Test
-    @DisplayName("Should throw IllegalArgumentException when id is null")
-    void shouldThrowIllegalArgumentExceptionWhenIdIsNull() {
-        var now = LocalDateTime.now();
-        assertThrows(IllegalArgumentException.class, () -> 
-            new Wallet(null, "John", "john@example.com", BigDecimal.valueOf(100.00), now, now)
+    @DisplayName("Should reject null id")
+    void shouldRejectNullId() {
+        assertThrows(InvalidWalletException.class, () ->
+                new Wallet(null, "John", "john@example.com", BigDecimal.ZERO, NOW, NOW)
         );
     }
 
     @Test
-    @DisplayName("Should throw IllegalArgumentException when owner name is null")
-    void shouldThrowIllegalArgumentExceptionWhenOwnerNameIsNull() {
-        var id = UUID.randomUUID();
-        var now = LocalDateTime.now();
-        assertThrows(IllegalArgumentException.class, () -> 
-            new Wallet(id, null, "john@example.com", BigDecimal.valueOf(100.00), now, now)
+    @DisplayName("Should reject null owner name")
+    void shouldRejectNullOwnerName() {
+        assertThrows(InvalidWalletException.class, () ->
+                new Wallet(UUID.randomUUID(), null, "john@example.com", BigDecimal.ZERO, NOW, NOW)
         );
     }
 
     @Test
-    @DisplayName("Should throw IllegalArgumentException when owner name is blank")
-    void shouldThrowIllegalArgumentExceptionWhenOwnerNameIsBlank() {
-        var id = UUID.randomUUID();
-        var now = LocalDateTime.now();
-        assertThrows(IllegalArgumentException.class, () -> 
-            new Wallet(id, "   ", "john@example.com", BigDecimal.valueOf(100.00), now, now)
+    @DisplayName("Should reject blank owner name")
+    void shouldRejectBlankOwnerName() {
+        assertThrows(InvalidWalletException.class, () ->
+                new Wallet(UUID.randomUUID(), "  ", "john@example.com", BigDecimal.ZERO, NOW, NOW)
         );
     }
 
     @Test
-    @DisplayName("Should throw IllegalArgumentException when owner email is null")
-    void shouldThrowIllegalArgumentExceptionWhenOwnerEmailIsNull() {
-        var id = UUID.randomUUID();
-        var now = LocalDateTime.now();
-        assertThrows(IllegalArgumentException.class, () -> 
-            new Wallet(id, "John", null, BigDecimal.valueOf(100.00), now, now)
+    @DisplayName("Should reject owner name shorter than 3 characters")
+    void shouldRejectShortOwnerName() {
+        assertThrows(InvalidWalletException.class, () ->
+                new Wallet(UUID.randomUUID(), "Jo", "john@example.com", BigDecimal.ZERO, NOW, NOW)
         );
     }
 
     @Test
-    @DisplayName("Should throw IllegalArgumentException when owner email is blank")
-    void shouldThrowIllegalArgumentExceptionWhenOwnerEmailIsBlank() {
-        var id = UUID.randomUUID();
-        var now = LocalDateTime.now();
-        assertThrows(IllegalArgumentException.class, () -> 
-            new Wallet(id, "John", "   ", BigDecimal.valueOf(100.00), now, now)
+    @DisplayName("Should reject null owner email")
+    void shouldRejectNullOwnerEmail() {
+        assertThrows(InvalidWalletException.class, () ->
+                new Wallet(UUID.randomUUID(), "John", null, BigDecimal.ZERO, NOW, NOW)
         );
     }
 
     @Test
-    @DisplayName("Should throw IllegalArgumentException when balance is null")
-    void shouldThrowIllegalArgumentExceptionWhenBalanceIsNull() {
-        var id = UUID.randomUUID();
-        var now = LocalDateTime.now();
-        assertThrows(IllegalArgumentException.class, () -> 
-            new Wallet(id, "John", "john@example.com", null, now, now)
+    @DisplayName("Should reject blank owner email")
+    void shouldRejectBlankOwnerEmail() {
+        assertThrows(InvalidWalletException.class, () ->
+                new Wallet(UUID.randomUUID(), "John", "  ", BigDecimal.ZERO, NOW, NOW)
         );
     }
 
     @Test
-    @DisplayName("Should throw IllegalArgumentException when balance is negative")
-    void shouldThrowIllegalArgumentExceptionWhenBalanceIsNegative() {
-        var id = UUID.randomUUID();
-        var now = LocalDateTime.now();
-        assertThrows(IllegalArgumentException.class, () -> 
-            new Wallet(id, "John", "john@example.com", BigDecimal.valueOf(-50.00), now, now)
+    @DisplayName("Should reject null balance")
+    void shouldRejectNullBalance() {
+        assertThrows(InvalidWalletException.class, () ->
+                new Wallet(UUID.randomUUID(), "John", "john@example.com", null, NOW, NOW)
         );
     }
 
     @Test
-    @DisplayName("Should throw IllegalArgumentException when createdAt is null")
-    void shouldThrowIllegalArgumentExceptionWhenCreatedAtIsNull() {
-        var id = UUID.randomUUID();
-        var now = LocalDateTime.now();
-        assertThrows(IllegalArgumentException.class, () -> 
-            new Wallet(id, "John", "john@example.com", BigDecimal.valueOf(100.00), null, now)
+    @DisplayName("Should reject negative balance")
+    void shouldRejectNegativeBalance() {
+        assertThrows(InvalidWalletException.class, () ->
+                new Wallet(UUID.randomUUID(), "John", "john@example.com", new BigDecimal("-1.00"), NOW, NOW)
         );
     }
 
     @Test
-    @DisplayName("Should throw IllegalArgumentException when updatedAt is null")
-    void shouldThrowIllegalArgumentExceptionWhenUpdatedAtIsNull() {
-        var id = UUID.randomUUID();
-        var now = LocalDateTime.now();
-        assertThrows(IllegalArgumentException.class, () -> 
-            new Wallet(id, "John", "john@example.com", BigDecimal.valueOf(100.00), now, null)
+    @DisplayName("Should reject null createdAt")
+    void shouldRejectNullCreatedAt() {
+        assertThrows(InvalidWalletException.class, () ->
+                new Wallet(UUID.randomUUID(), "John", "john@example.com", BigDecimal.ZERO, null, NOW)
         );
     }
 
     @Test
-    @DisplayName("Should deposit successfully")
-    void shouldDepositSuccessfully() {
-        var now = LocalDateTime.now();
-        var wallet = new Wallet(UUID.randomUUID(), "John", "john@example.com", BigDecimal.valueOf(100.00), now, now);
-
-        wallet.deposit(BigDecimal.valueOf(50.00));
-
-        assertEquals(BigDecimal.valueOf(150.00), wallet.getBalance());
-        assertNotNull(wallet.getUpdatedAt());
+    @DisplayName("Should reject null updatedAt")
+    void shouldRejectNullUpdatedAt() {
+        assertThrows(InvalidWalletException.class, () ->
+                new Wallet(UUID.randomUUID(), "John", "john@example.com", BigDecimal.ZERO, NOW, null)
+        );
     }
 
     @Test
-    @DisplayName("Should throw IllegalArgumentException for null deposit amount")
-    void shouldThrowIllegalArgumentExceptionForNullDepositAmount() {
-        var now = LocalDateTime.now();
-        var wallet = new Wallet(UUID.randomUUID(), "John", "john@example.com", BigDecimal.valueOf(100.00), now, now);
+    @DisplayName("Should deposit amount successfully")
+    void shouldDepositAmountSuccessfully() {
+        Wallet wallet = new Wallet(UUID.randomUUID(), "John", "john@example.com", BigDecimal.ZERO, NOW, NOW);
 
-        assertThrows(IllegalArgumentException.class, () -> wallet.deposit(null));
+        wallet.deposit(new BigDecimal("50.00"));
+
+        assertEquals(new BigDecimal("50.00"), wallet.getBalance());
     }
 
     @Test
-    @DisplayName("Should throw IllegalArgumentException for zero deposit amount")
-    void shouldThrowIllegalArgumentExceptionForZeroDepositAmount() {
-        var now = LocalDateTime.now();
-        var wallet = new Wallet(UUID.randomUUID(), "John", "john@example.com", BigDecimal.valueOf(100.00), now, now);
-
-        assertThrows(IllegalArgumentException.class, () -> wallet.deposit(BigDecimal.ZERO));
+    @DisplayName("Should reject null deposit amount")
+    void shouldRejectNullDepositAmount() {
+        Wallet wallet = new Wallet(UUID.randomUUID(), "John", "john@example.com", BigDecimal.ZERO, NOW, NOW);
+        assertThrows(InvalidWalletException.class, () -> wallet.deposit(null));
     }
 
     @Test
-    @DisplayName("Should throw IllegalArgumentException for negative deposit amount")
-    void shouldThrowIllegalArgumentExceptionForNegativeDepositAmount() {
-        var now = LocalDateTime.now();
-        var wallet = new Wallet(UUID.randomUUID(), "John", "john@example.com", BigDecimal.valueOf(100.00), now, now);
-
-        assertThrows(IllegalArgumentException.class, () -> wallet.deposit(BigDecimal.valueOf(-10.00)));
+    @DisplayName("Should reject zero deposit amount")
+    void shouldRejectZeroDepositAmount() {
+        Wallet wallet = new Wallet(UUID.randomUUID(), "John", "john@example.com", BigDecimal.ZERO, NOW, NOW);
+        assertThrows(InvalidWalletException.class, () -> wallet.deposit(BigDecimal.ZERO));
     }
 
     @Test
-    @DisplayName("Should throw IllegalArgumentException for null withdraw amount")
-    void shouldThrowIllegalArgumentExceptionForNullWithdrawAmount() {
-        var now = LocalDateTime.now();
-        var wallet = new Wallet(UUID.randomUUID(), "John", "john@example.com", BigDecimal.valueOf(100.00), now, now);
-
-        assertThrows(IllegalArgumentException.class, () -> wallet.withdraw(null));
+    @DisplayName("Should reject negative deposit amount")
+    void shouldRejectNegativeDepositAmount() {
+        Wallet wallet = new Wallet(UUID.randomUUID(), "John", "john@example.com", BigDecimal.ZERO, NOW, NOW);
+        assertThrows(InvalidWalletException.class, () -> wallet.deposit(new BigDecimal("-10.00")));
     }
 
     @Test
-    @DisplayName("Should throw IllegalArgumentException for zero withdraw amount")
-    void shouldThrowIllegalArgumentExceptionForZeroWithdrawAmount() {
-        var now = LocalDateTime.now();
-        var wallet = new Wallet(UUID.randomUUID(), "John", "john@example.com", BigDecimal.valueOf(100.00), now, now);
+    @DisplayName("Should withdraw amount successfully")
+    void shouldWithdrawAmountSuccessfully() {
+        Wallet wallet = new Wallet(UUID.randomUUID(), "John", "john@example.com", new BigDecimal("100.00"), NOW, NOW);
 
-        assertThrows(IllegalArgumentException.class, () -> wallet.withdraw(BigDecimal.ZERO));
+        wallet.withdraw(new BigDecimal("30.00"));
+
+        assertEquals(new BigDecimal("70.00"), wallet.getBalance());
     }
 
     @Test
-    @DisplayName("Should throw IllegalArgumentException for insufficient balance")
-    void shouldThrowIllegalArgumentExceptionForInsufficientBalance() {
-        var now = LocalDateTime.now();
-        var wallet = new Wallet(UUID.randomUUID(), "John", "john@example.com", BigDecimal.valueOf(50.00), now, now);
+    @DisplayName("Should reject null withdraw amount")
+    void shouldRejectNullWithdrawAmount() {
+        Wallet wallet = new Wallet(UUID.randomUUID(), "John", "john@example.com", new BigDecimal("100.00"), NOW, NOW);
+        assertThrows(InvalidWalletException.class, () -> wallet.withdraw(null));
+    }
 
-        assertThrows(IllegalArgumentException.class, () -> wallet.withdraw(BigDecimal.valueOf(100.00)));
+    @Test
+    @DisplayName("Should reject zero withdraw amount")
+    void shouldRejectZeroWithdrawAmount() {
+        Wallet wallet = new Wallet(UUID.randomUUID(), "John", "john@example.com", new BigDecimal("100.00"), NOW, NOW);
+        assertThrows(InvalidWalletException.class, () -> wallet.withdraw(BigDecimal.ZERO));
+    }
+
+    @Test
+    @DisplayName("Should reject negative withdraw amount")
+    void shouldRejectNegativeWithdrawAmount() {
+        Wallet wallet = new Wallet(UUID.randomUUID(), "John", "john@example.com", new BigDecimal("100.00"), NOW, NOW);
+        assertThrows(InvalidWalletException.class, () -> wallet.withdraw(new BigDecimal("-10.00")));
+    }
+
+    @Test
+    @DisplayName("Should reject withdraw when insufficient balance")
+    void shouldRejectWithdrawWhenInsufficientBalance() {
+        Wallet wallet = new Wallet(UUID.randomUUID(), "John", "john@example.com", new BigDecimal("10.00"), NOW, NOW);
+        assertThrows(InsufficientBalanceException.class, () -> wallet.withdraw(new BigDecimal("10.01")));
+    }
+
+    @Test
+    @DisplayName("Should update timestamp on deposit")
+    void shouldUpdateTimestampOnDeposit() {
+        Wallet wallet = new Wallet(UUID.randomUUID(), "John", "john@example.com", BigDecimal.ZERO, NOW, NOW);
+        LocalDateTime beforeDeposit = wallet.getUpdatedAt();
+
+        wallet.deposit(new BigDecimal("50.00"));
+
+        assertTrue(wallet.getUpdatedAt().isAfter(beforeDeposit) || wallet.getUpdatedAt().isEqual(beforeDeposit));
+    }
+
+    @Test
+    @DisplayName("Should update timestamp on withdraw")
+    void shouldUpdateTimestampOnWithdraw() {
+        Wallet wallet = new Wallet(UUID.randomUUID(), "John", "john@example.com", new BigDecimal("100.00"), NOW, NOW);
+        LocalDateTime beforeWithdraw = wallet.getUpdatedAt();
+
+        wallet.withdraw(new BigDecimal("50.00"));
+
+        assertTrue(wallet.getUpdatedAt().isAfter(beforeWithdraw) || wallet.getUpdatedAt().isEqual(beforeWithdraw));
+    }
+
+    @Test
+    @DisplayName("Should expose createdAt via getter")
+    void shouldExposeCreatedAtViaGetter() {
+        Wallet wallet = new Wallet(UUID.randomUUID(), "John", "john@example.com", BigDecimal.ZERO, NOW, NOW);
+        assertEquals(NOW, wallet.getCreatedAt());
+    }
+
+    @Test
+    @DisplayName("Should expose updatedAt via getter")
+    void shouldExposeUpdatedAtViaGetter() {
+        Wallet wallet = new Wallet(UUID.randomUUID(), "John", "john@example.com", BigDecimal.ZERO, NOW, NOW);
+        assertEquals(NOW, wallet.getUpdatedAt());
+    }
+
+    @Test
+    @DisplayName("Should set balance directly via setBalance")
+    void shouldSetBalanceDirectlyViaSetBalance() {
+        Wallet wallet = new Wallet(UUID.randomUUID(), "John", "john@example.com", BigDecimal.ZERO, NOW, NOW);
+        wallet.setBalance(new BigDecimal("999.99"));
+        assertEquals(new BigDecimal("999.99"), wallet.getBalance());
+    }
+
+    @Test
+    @DisplayName("Should trim owner name with leading and trailing spaces")
+    void shouldTrimOwnerNameWithLeadingAndTrailingSpaces() {
+        Wallet wallet = new Wallet(UUID.randomUUID(), "  Alice  ", "alice@example.com", BigDecimal.ZERO, NOW, NOW);
+        assertEquals("Alice", wallet.getOwnerName());
+    }
+
+    @Test
+    @DisplayName("Should accept exactly 3 character owner name")
+    void shouldAcceptExactlyThreeCharacterOwnerName() {
+        Wallet wallet = new Wallet(UUID.randomUUID(), "Ana", "ana@example.com", BigDecimal.ZERO, NOW, NOW);
+        assertEquals("Ana", wallet.getOwnerName());
+    }
+
+    @Test
+    @DisplayName("Should allow withdraw of exact balance leaving zero")
+    void shouldAllowWithdrawOfExactBalance() {
+        Wallet wallet = new Wallet(UUID.randomUUID(), "John", "john@example.com", new BigDecimal("50.00"), NOW, NOW);
+        wallet.withdraw(new BigDecimal("50.00"));
+        assertEquals(0, wallet.getBalance().compareTo(BigDecimal.ZERO));
+    }
+
+    @Test
+    @DisplayName("Should accumulate multiple deposits correctly")
+    void shouldAccumulateMultipleDepositsCorrectly() {
+        Wallet wallet = new Wallet(UUID.randomUUID(), "John", "john@example.com", BigDecimal.ZERO, NOW, NOW);
+        wallet.deposit(new BigDecimal("30.00"));
+        wallet.deposit(new BigDecimal("20.00"));
+        assertEquals(new BigDecimal("50.00"), wallet.getBalance());
+    }
+
+    @Test
+    @DisplayName("Should reflect correct balance after multiple operations")
+    void shouldReflectCorrectBalanceAfterMultipleOperations() {
+        Wallet wallet = new Wallet(UUID.randomUUID(), "John", "john@example.com", new BigDecimal("100.00"), NOW, NOW);
+        wallet.deposit(new BigDecimal("50.00"));
+        wallet.withdraw(new BigDecimal("30.00"));
+        assertEquals(new BigDecimal("120.00"), wallet.getBalance());
     }
 }

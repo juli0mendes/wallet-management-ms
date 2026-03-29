@@ -1,9 +1,10 @@
 package io.github.juli0mendes.walletmanagement.exception;
 
+import io.github.juli0mendes.walletmanagement.domain.exception.InsufficientBalanceException;
+import io.github.juli0mendes.walletmanagement.domain.exception.InvalidWalletException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.validation.BeanPropertyBindingResult;
 import org.springframework.validation.FieldError;
@@ -19,6 +20,69 @@ import static org.junit.jupiter.api.Assertions.*;
 class GlobalExceptionHandlerTest {
 
     private final GlobalExceptionHandler exceptionHandler = new GlobalExceptionHandler();
+
+    @Test
+    @DisplayName("Should handle InvalidWalletException correctly")
+    void shouldHandleInvalidWalletExceptionCorrectly() {
+        var exception = new InvalidWalletException("Wallet id is required");
+        var request = createMockWebRequest("/api/v1/wallets");
+
+        var response = exceptionHandler.handleInvalidWallet(exception, request);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals("INVALID_WALLET", response.getBody().getErrorCode());
+        assertEquals("Wallet id is required", response.getBody().getMessage());
+        assertEquals("/api/v1/wallets", response.getBody().getPath());
+        assertNotNull(response.getBody().getTimestamp());
+    }
+
+    @Test
+    @DisplayName("Should handle InvalidWalletException with different validation messages")
+    void shouldHandleInvalidWalletExceptionWithDifferentMessages() {
+        for (String msg : new String[]{
+                "Owner name is required",
+                "Balance cannot be negative",
+                "Deposit amount must be greater than zero"}) {
+            var exception = new InvalidWalletException(msg);
+            var request = createMockWebRequest("/api/v1/wallets");
+
+            var response = exceptionHandler.handleInvalidWallet(exception, request);
+
+            assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+            assertEquals("INVALID_WALLET", response.getBody().getErrorCode());
+            assertEquals(msg, response.getBody().getMessage());
+        }
+    }
+
+    @Test
+    @DisplayName("Should handle InsufficientBalanceException correctly")
+    void shouldHandleInsufficientBalanceExceptionCorrectly() {
+        var exception = new InsufficientBalanceException("Insufficient balance for this operation");
+        var request = createMockWebRequest("/api/v1/wallets/withdraw");
+
+        var response = exceptionHandler.handleInsufficientBalance(exception, request);
+
+        assertEquals(HttpStatus.UNPROCESSABLE_ENTITY, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals("INSUFFICIENT_BALANCE", response.getBody().getErrorCode());
+        assertEquals("Insufficient balance for this operation", response.getBody().getMessage());
+        assertEquals("/api/v1/wallets/withdraw", response.getBody().getPath());
+        assertNotNull(response.getBody().getTimestamp());
+    }
+
+    @Test
+    @DisplayName("Should handle InsufficientBalanceException on transfer")
+    void shouldHandleInsufficientBalanceExceptionOnTransfer() {
+        var exception = new InsufficientBalanceException("Insufficient balance for this operation");
+        var request = createMockWebRequest("/api/v1/transfers");
+
+        var response = exceptionHandler.handleInsufficientBalance(exception, request);
+
+        assertEquals(HttpStatus.UNPROCESSABLE_ENTITY, response.getStatusCode());
+        assertEquals("INSUFFICIENT_BALANCE", response.getBody().getErrorCode());
+        assertEquals("/api/v1/transfers", response.getBody().getPath());
+    }
 
     @Test
     @DisplayName("Should handle WalletNotFoundException correctly")

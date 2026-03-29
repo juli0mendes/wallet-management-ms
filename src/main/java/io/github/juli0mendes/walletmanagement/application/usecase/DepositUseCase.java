@@ -3,6 +3,7 @@ package io.github.juli0mendes.walletmanagement.application.usecase;
 import io.github.juli0mendes.walletmanagement.domain.model.Transaction;
 import io.github.juli0mendes.walletmanagement.domain.model.TransactionType;
 import io.github.juli0mendes.walletmanagement.domain.model.Wallet;
+import io.github.juli0mendes.walletmanagement.domain.repository.TransactionRepository;
 import io.github.juli0mendes.walletmanagement.domain.repository.WalletRepository;
 import io.github.juli0mendes.walletmanagement.dto.DepositRequest;
 import io.github.juli0mendes.walletmanagement.dto.TransactionResponse;
@@ -16,16 +17,18 @@ import java.util.UUID;
 public class DepositUseCase {
 
     private final WalletRepository walletRepository;
+    private final TransactionRepository transactionRepository;
 
-    public DepositUseCase(WalletRepository walletRepository) {
+    public DepositUseCase(WalletRepository walletRepository, TransactionRepository transactionRepository) {
         this.walletRepository = walletRepository;
+        this.transactionRepository = transactionRepository;
     }
 
     public TransactionResponse execute(UUID walletId, DepositRequest request) {
         Wallet wallet = walletRepository.findById(walletId)
                 .orElseThrow(() -> new WalletNotFoundException(walletId.toString()));
 
-        wallet.deposit(request.getAmount());
+        wallet.deposit(request.amount());
 
         Wallet savedWallet = walletRepository.save(wallet);
 
@@ -33,13 +36,13 @@ public class DepositUseCase {
                 UUID.randomUUID(),
                 walletId,
                 TransactionType.DEPOSIT,
-                request.getAmount(),
+                request.amount(),
                 savedWallet.getBalance(),
-                request.getDescription(),
+                request.description(),
                 LocalDateTime.now()
         );
 
-        Transaction savedTransaction = walletRepository.saveTransaction(transaction);
+        Transaction savedTransaction = transactionRepository.save(transaction);
 
         return new TransactionResponse(
                 savedTransaction.getId(),

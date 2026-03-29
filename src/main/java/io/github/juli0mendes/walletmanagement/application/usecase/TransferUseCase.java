@@ -3,6 +3,7 @@ package io.github.juli0mendes.walletmanagement.application.usecase;
 import io.github.juli0mendes.walletmanagement.domain.model.Transaction;
 import io.github.juli0mendes.walletmanagement.domain.model.TransactionType;
 import io.github.juli0mendes.walletmanagement.domain.model.Wallet;
+import io.github.juli0mendes.walletmanagement.domain.repository.TransactionRepository;
 import io.github.juli0mendes.walletmanagement.domain.repository.WalletRepository;
 import io.github.juli0mendes.walletmanagement.dto.TransferRequest;
 import io.github.juli0mendes.walletmanagement.dto.TransferResponse;
@@ -17,15 +18,17 @@ import java.util.UUID;
 public class TransferUseCase {
 
     private final WalletRepository walletRepository;
+    private final TransactionRepository transactionRepository;
 
-    public TransferUseCase(WalletRepository walletRepository) {
+    public TransferUseCase(WalletRepository walletRepository, TransactionRepository transactionRepository) {
         this.walletRepository = walletRepository;
+        this.transactionRepository = transactionRepository;
     }
 
     public TransferResponse execute(TransferRequest request) {
-        UUID sourceWalletId = request.getSourceWalletId();
-        UUID destinationWalletId = request.getDestinationWalletId();
-        BigDecimal amount = request.getAmount();
+        UUID sourceWalletId = request.sourceWalletId();
+        UUID destinationWalletId = request.destinationWalletId();
+        BigDecimal amount = request.amount();
 
         Wallet sourceWallet = walletRepository.findById(sourceWalletId)
                 .orElseThrow(() -> new WalletNotFoundException(sourceWalletId.toString()));
@@ -47,10 +50,10 @@ public class TransferUseCase {
                 TransactionType.TRANSFER_OUT,
                 amount,
                 sourceWallet.getBalance(),
-                request.getDescription(),
+                request.description(),
                 now
         );
-        walletRepository.saveTransaction(sourceTransaction);
+        transactionRepository.save(sourceTransaction);
 
         Transaction destTransaction = new Transaction(
                 UUID.randomUUID(),
@@ -58,10 +61,10 @@ public class TransferUseCase {
                 TransactionType.TRANSFER_IN,
                 amount,
                 destinationWallet.getBalance(),
-                request.getDescription(),
+                request.description(),
                 now
         );
-        walletRepository.saveTransaction(destTransaction);
+        transactionRepository.save(destTransaction);
 
         return new TransferResponse(
                 UUID.randomUUID(),
@@ -69,7 +72,7 @@ public class TransferUseCase {
                 destinationWalletId,
                 amount,
                 "COMPLETED",
-                request.getDescription(),
+                request.description(),
                 now
         );
     }

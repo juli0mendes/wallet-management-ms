@@ -41,10 +41,10 @@ class GetWalletByIdUseCaseTest {
         WalletResponse response = getWalletByIdUseCase.execute(walletId);
 
         assertNotNull(response);
-        assertEquals(walletId, response.getWalletId());
-        assertEquals("John Doe", response.getOwnerName());
-        assertEquals("john@example.com", response.getOwnerEmail());
-        assertEquals(BigDecimal.valueOf(100.00), response.getCurrentBalance());
+        assertEquals(walletId, response.walletId());
+        assertEquals("John Doe", response.ownerName());
+        assertEquals("john@example.com", response.ownerEmail());
+        assertEquals(BigDecimal.valueOf(100.00), response.currentBalance());
     }
 
     @Test

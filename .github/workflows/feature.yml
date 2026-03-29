@@ -33,6 +33,19 @@ jobs:
   unit-tests:
     name: Unit tests
     runs-on: ubuntu-latest
+    services:
+      mongodb:
+        image: mongo:7
+        env:
+          MONGO_INITDB_ROOT_USERNAME: walletadmin
+          MONGO_INITDB_ROOT_PASSWORD: walletpass
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.runCommand({ping:1})'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -45,6 +58,8 @@ jobs:
           cache: 'maven'
 
       - name: Run unit tests
+        env:
+          MONGODB_URI: mongodb://walletadmin:walletpass@localhost:27017/wallet_management?authSource=admin
         run: mvn -B test
 
   create-or-update-pr:

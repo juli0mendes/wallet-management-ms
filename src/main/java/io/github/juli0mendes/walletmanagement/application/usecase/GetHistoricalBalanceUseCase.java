@@ -1,6 +1,7 @@
 package io.github.juli0mendes.walletmanagement.application.usecase;
 
 import io.github.juli0mendes.walletmanagement.domain.model.Transaction;
+import io.github.juli0mendes.walletmanagement.domain.repository.TransactionRepository;
 import io.github.juli0mendes.walletmanagement.domain.repository.WalletRepository;
 import io.github.juli0mendes.walletmanagement.dto.BalanceResponse;
 import io.github.juli0mendes.walletmanagement.exception.WalletNotFoundException;
@@ -15,9 +16,11 @@ import java.util.UUID;
 public class GetHistoricalBalanceUseCase {
 
     private final WalletRepository walletRepository;
+    private final TransactionRepository transactionRepository;
 
-    public GetHistoricalBalanceUseCase(WalletRepository walletRepository) {
+    public GetHistoricalBalanceUseCase(WalletRepository walletRepository, TransactionRepository transactionRepository) {
         this.walletRepository = walletRepository;
+        this.transactionRepository = transactionRepository;
     }
 
     public BalanceResponse execute(UUID walletId, LocalDateTime at) {
@@ -30,7 +33,7 @@ public class GetHistoricalBalanceUseCase {
     }
 
     private BigDecimal calculateBalanceAtTime(UUID walletId, LocalDateTime at) {
-        List<Transaction> transactions = walletRepository.findTransactionsByWalletIdAndCreatedAtBefore(walletId, at);
+        List<Transaction> transactions = transactionRepository.findByWalletIdAndCreatedAtBefore(walletId, at);
         BigDecimal balance = BigDecimal.ZERO;
 
         for (Transaction tx : transactions) {

@@ -6,37 +6,12 @@ import jakarta.validation.constraints.NotNull;
 
 import java.math.BigDecimal;
 
-public class WithdrawRequest {
+public record WithdrawRequest(
+        @NotNull(message = "Amount is required")
+        @DecimalMin(value = "0.01", message = "Amount must be greater than 0")
+        BigDecimal amount,
 
-    @NotNull(message = "Amount is required")
-    @DecimalMin(value = "0.01", message = "Amount must be greater than 0")
-    private BigDecimal amount;
-
-    @JsonProperty("description")
-    private String description;
-
-    public WithdrawRequest() {
-    }
-
-    public WithdrawRequest(BigDecimal amount, String description) {
-        this.amount = amount;
-        this.description = description;
-    }
-
-    public BigDecimal getAmount() {
-        return amount;
-    }
-
-    public void setAmount(BigDecimal amount) {
-        this.amount = amount;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
+        @JsonProperty("description")
+        String description
+) {
 }
-

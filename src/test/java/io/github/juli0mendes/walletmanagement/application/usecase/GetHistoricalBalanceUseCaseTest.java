@@ -3,6 +3,7 @@ package io.github.juli0mendes.walletmanagement.application.usecase;
 import io.github.juli0mendes.walletmanagement.domain.model.Transaction;
 import io.github.juli0mendes.walletmanagement.domain.model.TransactionType;
 import io.github.juli0mendes.walletmanagement.domain.model.Wallet;
+import io.github.juli0mendes.walletmanagement.domain.repository.TransactionRepository;
 import io.github.juli0mendes.walletmanagement.domain.repository.WalletRepository;
 import io.github.juli0mendes.walletmanagement.dto.BalanceResponse;
 import io.github.juli0mendes.walletmanagement.exception.WalletNotFoundException;
@@ -29,6 +30,9 @@ class GetHistoricalBalanceUseCaseTest {
     @Mock
     private WalletRepository walletRepository;
 
+    @Mock
+    private TransactionRepository transactionRepository;
+
     @InjectMocks
     private GetHistoricalBalanceUseCase getHistoricalBalanceUseCase;
 
@@ -44,13 +48,13 @@ class GetHistoricalBalanceUseCaseTest {
         );
 
         when(walletRepository.findById(walletId)).thenReturn(Optional.of(new Wallet(walletId, "John", "john@example.com", BigDecimal.ZERO, now, now)));
-        when(walletRepository.findTransactionsByWalletIdAndCreatedAtBefore(walletId, at)).thenReturn(transactions.subList(0, 1));
+        when(transactionRepository.findByWalletIdAndCreatedAtBefore(walletId, at)).thenReturn(transactions.subList(0, 1));
 
         BalanceResponse response = getHistoricalBalanceUseCase.execute(walletId, at);
 
         assertNotNull(response);
-        assertEquals(BigDecimal.valueOf(100.00), response.getCurrentBalance());
-        assertEquals("USD", response.getCurrency());
+        assertEquals(BigDecimal.valueOf(100.00), response.currentBalance());
+        assertEquals("USD", response.currency());
     }
 
     @Test

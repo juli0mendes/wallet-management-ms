@@ -13,7 +13,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class WalletResponseTest {
 
     @Test
-    @DisplayName("Should test WalletResponse getters and setters")
+    @DisplayName("Should expose WalletResponse record accessors")
     void shouldTestWalletResponse() {
         var walletId = UUID.randomUUID();
         var ownerName = "Test User";
@@ -24,32 +24,11 @@ class WalletResponseTest {
 
         var response = new WalletResponse(walletId, ownerName, ownerEmail, currentBalance, createdAt, updatedAt);
 
-        assertEquals(walletId, response.getWalletId());
-        assertEquals(ownerName, response.getOwnerName());
-        assertEquals(ownerEmail, response.getOwnerEmail());
-        assertEquals(currentBalance, response.getCurrentBalance());
-        assertEquals(createdAt, response.getCreatedAt());
-        assertEquals(updatedAt, response.getUpdatedAt());
-
-        var newWalletId = UUID.randomUUID();
-        var newOwnerName = "Updated User";
-        var newOwnerEmail = "updated@example.com";
-        var newCurrentBalance = BigDecimal.valueOf(300.00);
-        var newCreatedAt = LocalDateTime.now().minusDays(2);
-        var newUpdatedAt = LocalDateTime.now().plusMinutes(10);
-
-        response.setWalletId(newWalletId);
-        response.setOwnerName(newOwnerName);
-        response.setOwnerEmail(newOwnerEmail);
-        response.setCurrentBalance(newCurrentBalance);
-        response.setCreatedAt(newCreatedAt);
-        response.setUpdatedAt(newUpdatedAt);
-
-        assertEquals(newWalletId, response.getWalletId());
-        assertEquals(newOwnerName, response.getOwnerName());
-        assertEquals(newOwnerEmail, response.getOwnerEmail());
-        assertEquals(newCurrentBalance, response.getCurrentBalance());
-        assertEquals(newCreatedAt, response.getCreatedAt());
-        assertEquals(newUpdatedAt, response.getUpdatedAt());
+        assertEquals(walletId, response.walletId());
+        assertEquals(ownerName, response.ownerName());
+        assertEquals(ownerEmail, response.ownerEmail());
+        assertEquals(currentBalance, response.currentBalance());
+        assertEquals(createdAt, response.createdAt());
+        assertEquals(updatedAt, response.updatedAt());
     }
 }

@@ -25,8 +25,8 @@ public class CreateWalletUseCase {
 
         Wallet wallet = new Wallet(
                 walletId,
-                request.getOwnerName(),
-                request.getOwnerEmail(),
+                request.ownerName(),
+                request.ownerEmail(),
                 BigDecimal.ZERO,
                 now,
                 now
