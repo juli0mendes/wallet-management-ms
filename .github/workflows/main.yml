@@ -75,30 +75,41 @@ jobs:
         id: semver
         run: |
           set -euo pipefail
+
           LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "0.0.0")
           echo "Latest tag: $LATEST_TAG"
+
           LATEST=${LATEST_TAG#v}
           IFS='.' read -r MAJ MIN PATCH <<< "${LATEST}"
           MAJ=${MAJ:-0}; MIN=${MIN:-0}; PATCH=${PATCH:-0}
 
           if [ "$LATEST_TAG" = "0.0.0" ]; then
-            COMMITS=$(git log --pretty=%B --no-merges HEAD)
+            RANGE="HEAD"
           else
-            COMMITS=$(git log ${LATEST_TAG}..HEAD --pretty=%B --no-merges)
+            RANGE="${LATEST_TAG}..HEAD"
           fi
 
-          echo "Commits since tag:\n$COMMITS"
+          SUBJECTS=$(git log ${RANGE} --pretty=format:'%s' --no-merges)
+          BODIES=$(git log ${RANGE} --pretty=format:'%b' --no-merges)
+
+          echo "Subjects since tag:"
+          echo "$SUBJECTS"
 
           BUMP="none"
-          if echo "$COMMITS" | grep -E "BREAKING CHANGE" -qi || echo "$COMMITS" | grep -E "^[^\n]*!" -q; then
+
+          if echo "$SUBJECTS" | grep -Eiq '^[a-z]+(\([^)]+\))?!:'; then
             BUMP="major"
-          elif echo "$COMMITS" | grep -E "(^|\b)feat(\b|:|\()" -qi; then
+          elif echo "$BODIES" | grep -Eiq '(^|[[:space:]])BREAKING[[:space:]]+CHANGE:'; then
+            BUMP="major"
+          elif echo "$SUBJECTS" | grep -Eiq '^feat(\([^)]+\))?:'; then
             BUMP="minor"
-          elif echo "$COMMITS" | grep -E "(^|\b)(fix|bug|docs|test|perf|style|chore)(\b|:|\()" -qi; then
+          elif echo "$SUBJECTS" | grep -Eiq '^(fix|refactor|perf|test|docs|style|chore|build|ci|deps|config|revert)(\([^)]+\))?:'; then
             BUMP="patch"
-          else
-            echo "No conventional commit indication for a release. Skipping release." >&2
-            echo "bump=none" >> $GITHUB_OUTPUT
+          fi
+
+          if [ "$BUMP" = "none" ]; then
+            echo "No conventional commit indication for a release. Skipping release."
+            echo "bump=none" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -113,8 +124,9 @@ jobs:
           fi
 
           NEW_TAG="v${MAJ}.${MIN}.${PATCH}"
-          echo "new_tag=$NEW_TAG" >> $GITHUB_OUTPUT
-          echo "bump=$BUMP" >> $GITHUB_OUTPUT
+          echo "new_tag=$NEW_TAG" >> "$GITHUB_OUTPUT"
+          echo "bump=$BUMP" >> "$GITHUB_OUTPUT"
+          echo "Final version: $NEW_TAG"
 
       - name: Create tag and push release
         if: steps.semver.outputs.bump != 'none'
