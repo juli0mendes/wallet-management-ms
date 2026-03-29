@@ -1,9 +1,9 @@
 package io.github.juli0mendes.walletmanagement.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.juli0mendes.walletmanagement.application.usecase.*;
 import io.github.juli0mendes.walletmanagement.dto.*;
 import io.github.juli0mendes.walletmanagement.exception.WalletNotFoundException;
-import io.github.juli0mendes.walletmanagement.service.WalletService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,7 +34,22 @@ class WalletControllerTest {
     private ObjectMapper objectMapper;
 
     @MockBean
-    private WalletService walletService;
+    private CreateWalletUseCase createWalletUseCase;
+
+    @MockBean
+    private GetWalletByIdUseCase getWalletByIdUseCase;
+
+    @MockBean
+    private GetBalanceUseCase getBalanceUseCase;
+
+    @MockBean
+    private GetTransactionsUseCase getTransactionsUseCase;
+
+    @MockBean
+    private DepositUseCase depositUseCase;
+
+    @MockBean
+    private WithdrawUseCase withdrawUseCase;
 
     @Test
     @DisplayName("Should create wallet successfully")
@@ -44,7 +59,7 @@ class WalletControllerTest {
                 UUID.randomUUID(), "John Doe", "john@example.com",
                 BigDecimal.ZERO, LocalDateTime.now(), LocalDateTime.now()
         );
-        when(walletService.createWallet(any(CreateWalletRequest.class))).thenReturn(response);
+        when(createWalletUseCase.execute(any(CreateWalletRequest.class))).thenReturn(response);
 
         mockMvc.perform(post("/api/v1/wallets")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -88,7 +103,7 @@ class WalletControllerTest {
                 walletId, "John Doe", "john@example.com",
                 BigDecimal.valueOf(100.00), LocalDateTime.now(), LocalDateTime.now()
         );
-        when(walletService.getWallet(walletId)).thenReturn(response);
+        when(getWalletByIdUseCase.execute(walletId)).thenReturn(response);
 
         mockMvc.perform(get("/api/v1/wallets/{walletId}", walletId))
                 .andExpect(status().isOk())
@@ -100,7 +115,7 @@ class WalletControllerTest {
     @DisplayName("Should return 404 when wallet not found")
     void shouldReturn404WhenWalletNotFound() throws Exception {
         var walletId = UUID.randomUUID();
-        when(walletService.getWallet(walletId)).thenThrow(new WalletNotFoundException(walletId.toString()));
+        when(getWalletByIdUseCase.execute(walletId)).thenThrow(new WalletNotFoundException(walletId.toString()));
 
         mockMvc.perform(get("/api/v1/wallets/{walletId}", walletId))
                 .andExpect(status().isNotFound())
@@ -113,7 +128,7 @@ class WalletControllerTest {
     void shouldGetBalanceSuccessfully() throws Exception {
         var walletId = UUID.randomUUID();
         var response = new BalanceResponse(BigDecimal.valueOf(150.00), "USD", LocalDateTime.now());
-        when(walletService.getBalance(eq(walletId), isNull())).thenReturn(response);
+        when(getBalanceUseCase.execute(eq(walletId), isNull())).thenReturn(response);
 
         mockMvc.perform(get("/api/v1/wallets/{walletId}/balance", walletId))
                 .andExpect(status().isOk())
@@ -125,7 +140,7 @@ class WalletControllerTest {
     @DisplayName("Should return 404 when getting balance for non-existent wallet")
     void shouldReturn404WhenGettingBalanceForNonExistentWallet() throws Exception {
         var walletId = UUID.randomUUID();
-        when(walletService.getBalance(eq(walletId), isNull())).thenThrow(new WalletNotFoundException(walletId.toString()));
+        when(getBalanceUseCase.execute(eq(walletId), isNull())).thenThrow(new WalletNotFoundException(walletId.toString()));
 
         mockMvc.perform(get("/api/v1/wallets/{walletId}/balance", walletId))
                 .andExpect(status().isNotFound())
@@ -141,7 +156,7 @@ class WalletControllerTest {
                 UUID.randomUUID(), walletId, "DEPOSIT", BigDecimal.valueOf(50.00),
                 BigDecimal.valueOf(50.00), "Test deposit", LocalDateTime.now()
         );
-        when(walletService.deposit(eq(walletId), any(DepositRequest.class))).thenReturn(response);
+        when(depositUseCase.execute(eq(walletId), any(DepositRequest.class))).thenReturn(response);
 
         mockMvc.perform(post("/api/v1/wallets/{walletId}/deposit", walletId)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -184,7 +199,7 @@ class WalletControllerTest {
     void shouldReturn404WhenDepositingToNonExistentWallet() throws Exception {
         var walletId = UUID.randomUUID();
         var request = new DepositRequest(BigDecimal.valueOf(50.00), "Test deposit");
-        when(walletService.deposit(eq(walletId), any(DepositRequest.class))).thenThrow(new WalletNotFoundException(walletId.toString()));
+        when(depositUseCase.execute(eq(walletId), any(DepositRequest.class))).thenThrow(new WalletNotFoundException(walletId.toString()));
 
         mockMvc.perform(post("/api/v1/wallets/{walletId}/deposit", walletId)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -202,7 +217,7 @@ class WalletControllerTest {
                 UUID.randomUUID(), walletId, "WITHDRAW", BigDecimal.valueOf(30.00),
                 BigDecimal.valueOf(70.00), "Test withdrawal", LocalDateTime.now()
         );
-        when(walletService.withdraw(eq(walletId), any(WithdrawRequest.class))).thenReturn(response);
+        when(withdrawUseCase.execute(eq(walletId), any(WithdrawRequest.class))).thenReturn(response);
 
         mockMvc.perform(post("/api/v1/wallets/{walletId}/withdraw", walletId)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -231,7 +246,7 @@ class WalletControllerTest {
     void shouldReturn404WhenWithdrawingFromNonExistentWallet() throws Exception {
         var walletId = UUID.randomUUID();
         var request = new WithdrawRequest(BigDecimal.valueOf(30.00), "Test withdrawal");
-        when(walletService.withdraw(eq(walletId), any(WithdrawRequest.class))).thenThrow(new WalletNotFoundException(walletId.toString()));
+        when(withdrawUseCase.execute(eq(walletId), any(WithdrawRequest.class))).thenThrow(new WalletNotFoundException(walletId.toString()));
 
         mockMvc.perform(post("/api/v1/wallets/{walletId}/withdraw", walletId)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -249,7 +264,7 @@ class WalletControllerTest {
                         BigDecimal.valueOf(100.00), BigDecimal.valueOf(100.00),
                         "Deposit", LocalDateTime.now())
         );
-        when(walletService.getTransactions(walletId)).thenReturn(transactions);
+        when(getTransactionsUseCase.execute(walletId)).thenReturn(transactions);
 
         mockMvc.perform(get("/api/v1/wallets/{walletId}/transactions", walletId))
                 .andExpect(status().isOk())
@@ -261,7 +276,7 @@ class WalletControllerTest {
     @DisplayName("Should return 404 when getting transactions for non-existent wallet")
     void shouldReturn404WhenGettingTransactionsForNonExistentWallet() throws Exception {
         var walletId = UUID.randomUUID();
-        when(walletService.getTransactions(walletId)).thenThrow(new WalletNotFoundException(walletId.toString()));
+        when(getTransactionsUseCase.execute(walletId)).thenThrow(new WalletNotFoundException(walletId.toString()));
 
         mockMvc.perform(get("/api/v1/wallets/{walletId}/transactions", walletId))
                 .andExpect(status().isNotFound())

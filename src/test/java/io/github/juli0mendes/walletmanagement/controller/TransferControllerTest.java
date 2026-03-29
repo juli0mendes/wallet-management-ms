@@ -1,9 +1,9 @@
 package io.github.juli0mendes.walletmanagement.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.juli0mendes.walletmanagement.application.usecase.TransferUseCase;
 import io.github.juli0mendes.walletmanagement.dto.TransferRequest;
 import io.github.juli0mendes.walletmanagement.dto.TransferResponse;
-import io.github.juli0mendes.walletmanagement.service.TransferService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,7 +32,7 @@ class TransferControllerTest {
     private ObjectMapper objectMapper;
 
     @MockBean
-    private TransferService transferService;
+    private TransferUseCase transferUseCase;
 
     @Test
     @DisplayName("Should process transfer successfully")
@@ -45,7 +45,7 @@ class TransferControllerTest {
         var response = new TransferResponse(UUID.randomUUID(), sourceWalletId, destinationWalletId,
                 BigDecimal.valueOf(100.00), "COMPLETED", "Test transfer", LocalDateTime.now());
 
-        when(transferService.transfer(any(TransferRequest.class))).thenReturn(response);
+        when(transferUseCase.execute(any(TransferRequest.class))).thenReturn(response);
 
         mockMvc.perform(post("/api/v1/transfers")
                         .contentType(MediaType.APPLICATION_JSON)
