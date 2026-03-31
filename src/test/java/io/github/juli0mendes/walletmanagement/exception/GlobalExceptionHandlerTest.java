@@ -11,6 +11,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.util.UUID;
 
@@ -197,6 +198,22 @@ class GlobalExceptionHandlerTest {
         @SuppressWarnings("unchecked")
         var errors = (java.util.Map<String, String>) response.getBody().get("errors");
         assertTrue(errors.isEmpty());
+    }
+
+    @Test
+    @DisplayName("Should handle UUID path/query mismatch as bad request")
+    void shouldHandleUuidPathQueryMismatchAsBadRequest() {
+        var exception = new MethodArgumentTypeMismatchException(
+                "not-a-uuid", UUID.class, "walletId", null, new IllegalArgumentException("Invalid UUID"));
+        var request = createMockWebRequest("/api/v1/wallets/not-a-uuid");
+
+        var response = exceptionHandler.handleMethodArgumentTypeMismatch(exception, request);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals("INVALID_UUID", response.getBody().getErrorCode());
+        assertEquals("Invalid UUID value for parameter: walletId", response.getBody().getMessage());
+        assertEquals("/api/v1/wallets/not-a-uuid", response.getBody().getPath());
     }
 
     private WebRequest createMockWebRequest(String uri) {

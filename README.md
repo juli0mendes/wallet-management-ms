@@ -61,6 +61,24 @@ Expected output:
 {"status":"UP"}
 ```
 
+## Postman: Import Collection + Environment and switch target in one click
+
+Ready-to-import files:
+
+- Collection: `wallet-management-ms.postman_collection.json`
+- Local Environment: `wallet-management-ms.local.postman_environment.json`
+- Docker Environment: `wallet-management-ms.docker.postman_environment.json`
+
+Quick steps:
+
+1) In Postman, click **Import** and import the collection plus both environments.
+2) In the top-right corner, select the active environment:
+   - **Wallet Management MS - Local** for local execution.
+   - **Wallet Management MS - Docker** for container execution.
+3) Run the collection requests as usual; target switching is handled automatically through `baseUrl`.
+
+Note: if your Docker port differs from `8080`, update only `baseUrl` in the Docker environment.
+
 ## Run with Docker
 
 Use this approach when you want to run the app image built from the project's `Dockerfile` and keep MongoDB running from the existing `docker-compose` setup.
@@ -392,6 +410,11 @@ Given time constraints, some capabilities were prioritized while others were def
   - Deferred: broader observability stack (metrics dashboards, tracing, alert rules) and stricter production profiles.
 
 These trade-offs do not block functional correctness, but they are recommended next steps before high-scale production rollout.
+
+## Technical Debt (To Be Addressed)
+
+- Pagination on queries/endpoints that return lists
+- HATEOAS support
 
 ## Running Tests
 
