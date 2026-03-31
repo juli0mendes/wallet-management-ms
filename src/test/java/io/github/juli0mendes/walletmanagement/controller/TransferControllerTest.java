@@ -99,4 +99,24 @@ class TransferControllerTest {
                 .andExpect(jsonPath("$.error_code").value("VALIDATION_ERROR"))
                 .andExpect(jsonPath("$.errors.amount").value("Amount must be greater than 0"));
     }
+
+    @Test
+    @DisplayName("Should return 400 for invalid UUID in transfer request body")
+    void shouldReturn400ForInvalidUuidInTransferRequestBody() throws Exception {
+        String requestJson = """
+                {
+                  "source_wallet_id": "not-a-uuid",
+                  "destination_wallet_id": "%s",
+                  "amount": 10.00,
+                  "description": "Test transfer"
+                }
+                """.formatted(UUID.randomUUID());
+
+        mockMvc.perform(post("/api/v1/transfers")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestJson))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error_code").value("INVALID_UUID"))
+                .andExpect(jsonPath("$.message").value("Invalid UUID value in request body"));
+    }
 }

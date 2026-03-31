@@ -6,14 +6,18 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -78,6 +82,41 @@ public class GlobalExceptionHandler {
         errorResponse.put("errors", fieldErrors);
 
         return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ErrorResponse> handleMethodArgumentTypeMismatch(
+            MethodArgumentTypeMismatchException ex, WebRequest request) {
+        if (UUID.class.equals(ex.getRequiredType())) {
+            String path = request.getDescription(false).replace("uri=", "");
+            log.warn("Invalid UUID path/query parameter path={} parameter={} value={}",
+                    path, ex.getName(), ex.getValue());
+            ErrorResponse errorResponse = new ErrorResponse(
+                    "INVALID_UUID",
+                    "Invalid UUID value for parameter: " + ex.getName(),
+                    path
+            );
+            return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+        }
+        return handleGlobalException(ex, request);
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleHttpMessageNotReadable(
+            HttpMessageNotReadableException ex, WebRequest request) {
+        if (ex.getCause() instanceof InvalidFormatException invalidFormatException
+                && UUID.class.equals(invalidFormatException.getTargetType())) {
+            String path = request.getDescription(false).replace("uri=", "");
+            log.warn("Invalid UUID in request body path={} value={}",
+                    path, invalidFormatException.getValue());
+            ErrorResponse errorResponse = new ErrorResponse(
+                    "INVALID_UUID",
+                    "Invalid UUID value in request body",
+                    path
+            );
+            return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+        }
+        return handleGlobalException(ex, request);
     }
 
     @ExceptionHandler(Exception.class)

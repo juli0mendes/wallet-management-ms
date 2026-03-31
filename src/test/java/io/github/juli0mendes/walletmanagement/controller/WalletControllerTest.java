@@ -124,6 +124,15 @@ class WalletControllerTest {
     }
 
     @Test
+    @DisplayName("Should return 400 for malformed walletId path variable")
+    void shouldReturn400ForMalformedWalletIdPathVariable() throws Exception {
+        mockMvc.perform(get("/api/v1/wallets/{walletId}", "not-a-uuid"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error_code").value("INVALID_UUID"))
+                .andExpect(jsonPath("$.message").value("Invalid UUID value for parameter: walletId"));
+    }
+
+    @Test
     @DisplayName("Should get balance successfully")
     void shouldGetBalanceSuccessfully() throws Exception {
         var walletId = UUID.randomUUID();
@@ -206,6 +215,19 @@ class WalletControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error_code").value("WALLET_NOT_FOUND"));
+    }
+
+    @Test
+    @DisplayName("Should return 400 for malformed walletId on deposit")
+    void shouldReturn400ForMalformedWalletIdOnDeposit() throws Exception {
+        var request = new DepositRequest(BigDecimal.valueOf(50.00), "Test deposit");
+
+        mockMvc.perform(post("/api/v1/wallets/{walletId}/deposit", "invalid-uuid")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error_code").value("INVALID_UUID"))
+                .andExpect(jsonPath("$.message").value("Invalid UUID value for parameter: walletId"));
     }
 
     @Test
