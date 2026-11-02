@@ -9,6 +9,7 @@ import io.github.juli0mendes.walletmanagement.dto.TransferRequest;
 import io.github.juli0mendes.walletmanagement.dto.TransferResponse;
 import io.github.juli0mendes.walletmanagement.exception.WalletNotFoundException;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -25,6 +26,7 @@ public class TransferUseCase {
         this.transactionRepository = transactionRepository;
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public TransferResponse execute(TransferRequest request) {
         UUID sourceWalletId = request.sourceWalletId();
         UUID destinationWalletId = request.destinationWalletId();

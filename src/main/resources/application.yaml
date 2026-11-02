@@ -14,7 +14,7 @@ spring:
       add-mappings: false
   data:
     mongodb:
-      uri: ${MONGODB_URI:mongodb://walletadmin:walletpass@localhost:27017/wallet_management?authSource=admin}
+      uri: ${MONGODB_URI:mongodb://walletadmin:walletpass@localhost:27017/wallet_management?authSource=admin&replicaSet=rs0}
 
 server:
   port: ${SERVER_PORT:8080}
