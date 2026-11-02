@@ -1,0 +1,114 @@
+schema: spec-driven
+githubCopilot:
+  cloudAgent: true
+
+context: |
+  Project: wallet-management-ms
+  
+  Language and Documentation:
+  - All OpenSpec artifacts MUST be written in Brazilian Portuguese (pt-BR).
+  - This includes proposal.md, design.md, tasks.md and spec.md.
+  - Use clear, professional and technically precise Portuguese.
+  - Keep source code, class names, method names and identifiers in English.
+  - Preserve OpenSpec structural keywords and syntax in English.
+  - Preserve technical terminology when translation would reduce clarity.
+
+  Technology Stack:
+  - Java 21
+  - Spring Boot 3
+  - MongoDB
+  - Maven
+
+  Architecture:
+  - Layered architecture with ports and adapters.
+  - Controllers handle HTTP requests and responses.
+  - Application use cases orchestrate business operations.
+  - Domain contains business entities and repository contracts.
+  - Infrastructure implements persistence adapters.
+  - Use cases depend on domain repository interfaces.
+  - Preserve existing package organization and dependency direction.
+
+  Domain:
+  - Main entities: Wallet and Transaction.
+  - Transaction types: DEPOSIT, WITHDRAW, TRANSFER_IN, TRANSFER_OUT.
+  - Wallet balances cannot be negative.
+  - Financial operation amounts must be positive.
+  - Withdrawals exceeding the available balance are rejected.
+  - New wallets start with zero balance.
+
+  API:
+  - Base path: /api/v1
+  - JSON fields use snake_case.
+  - Request validation uses Jakarta Bean Validation.
+  - Exceptions are handled centrally using RestControllerAdvice.
+  - Preserve existing public contracts unless a change explicitly
+    requires modifying them.
+
+  Persistence:
+  - MongoDB collections: wallets and transactions.
+  - Domain identifiers use UUID.
+  - MongoDB identifiers are stored as String.
+  - Repository implementations belong to the infrastructure layer.
+
+  Testing:
+  - JUnit 5 and Mockito for unit tests.
+  - WebMvcTest for controller tests.
+  - DataMongoTest for persistence tests.
+  - JaCoCo for code coverage.
+  - New functionality must include automated tests.
+  - Existing tests must remain compatible.
+
+  Known Technical Risks:
+  - Transfers currently lack atomic persistence across wallet
+    balances and transaction records.
+  - Concurrent operations may cause lost updates.
+  - Historical balance calculations may depend on unordered results.
+  - Financial operations currently lack idempotency guarantees.
+  - Currency is currently fixed to USD.
+  - Date/time handling uses LocalDateTime.
+  - Authentication and authorization are not implemented.
+  - Transaction history endpoints do not support pagination.
+
+  Engineering Guidelines:
+  - Preserve established architectural patterns.
+  - Do not introduce new frameworks without justification.
+  - Keep business rules independent of infrastructure.
+  - Prefer incremental changes.
+  - Avoid unrelated refactoring.
+  - Document architectural decisions and trade-offs.
+  - Treat known technical risks as existing limitations,
+    not as desired architectural behavior.
+  - Do not claim a requirement is satisfied without evidence.
+
+rules:
+  proposal:
+    - Identify affected components and existing behavior.
+    - Describe compatibility implications.
+    - Explicitly identify relevant technical risks.
+    - Write all descriptions and explanations in Brazilian Portuguese (pt-BR).
+
+  specs:
+    - Define observable behavior and acceptance scenarios.
+    - Include failure scenarios and edge cases.
+    - Avoid implementation details in functional requirements.
+    - Write requirements and scenarios in Brazilian Portuguese (pt-BR).
+    - Preserve OpenSpec structural keywords such as Requirement, Scenario, SHALL, ADDED, MODIFIED and REMOVED.
+    - Write requirements and scenarios in Brazilian Portuguese (pt-BR).
+    - Every mandatory requirement MUST contain the literal keyword SHALL.
+    - Use SHALL instead of the Portuguese word "deve" for normative requirements.
+    - Preserve OpenSpec structural keywords in English.
+    - Preserve the original meaning of requirements during translations.
+
+  design:
+    - Explain architectural decisions and alternatives.
+    - Consider concurrency, consistency and failure recovery.
+    - Identify impacts on existing REST contracts.
+    - Describe the testing strategy.
+    - Write architectural decisions, alternatives and trade-offs in Brazilian Portuguese (pt-BR).
+
+  tasks:
+    - Organize tasks by domain, application, infrastructure, API and tests.
+    - Include validation tasks for critical business rules.
+    - Keep tasks independently verifiable where practical.
+    - Write task descriptions in Brazilian Portuguese (pt-BR).
+    - Preserve Markdown checkbox syntax and task identifiers.
