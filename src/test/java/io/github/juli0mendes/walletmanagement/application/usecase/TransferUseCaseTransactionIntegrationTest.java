@@ -437,6 +437,88 @@ class TransferUseCaseTransactionIntegrationTest {
     }
 
     @Test
+    @DisplayName("Should not reconcile an initiated operation while an active execution lease is still valid")
+    void shouldNotReconcileInitiatedOperationWhileExecutionLeaseIsActive() {
+        var sourceWalletId = UUID.randomUUID();
+        var destinationWalletId = UUID.randomUUID();
+        var amount = new BigDecimal("40.00");
+        var operationId = "initiated-active-lease";
+        var now = LocalDateTime.now();
+
+        transferOperationRepository.save(new TransferOperation(
+                UUID.randomUUID(),
+                operationId,
+                UUID.randomUUID(),
+                sourceWalletId,
+                destinationWalletId,
+                amount,
+                "payload-active",
+                TransferOperationStatus.INITIATED,
+                "transfer still in flight",
+                "transfer-execution:active-owner",
+                now.plusMinutes(10),
+                now.minusMinutes(10),
+                now.minusMinutes(10)
+        ));
+
+        var operation = transferOperationRepository.findByOperationId(operationId).orElseThrow();
+        assertEquals("transfer-execution:active-owner", operation.getLeaseOwner());
+        assertTrue(operation.getLeaseExpiresAt() != null && operation.getLeaseExpiresAt().isAfter(LocalDateTime.now()));
+        assertFalse(reconciliationService.reconcileOperation(operation));
+        assertEquals(TransferOperationStatus.INITIATED,
+                transferOperationRepository.findByOperationId(operationId).orElseThrow().getStatus());
+        assertEquals("transfer-execution:active-owner",
+                transferOperationRepository.findByOperationId(operationId).orElseThrow().getLeaseOwner());
+    }
+
+    @Test
+    @DisplayName("Should reject invalid reconciliation transitions and expired leases")
+    void shouldRejectInvalidReconciliationTransitionsAndExpiredLease() {
+        var sourceWalletId = UUID.randomUUID();
+        var destinationWalletId = UUID.randomUUID();
+        var operationId = "reconcile-invalid";
+        var transferId = UUID.randomUUID();
+        var now = LocalDateTime.now();
+
+        transferOperationRepository.save(new TransferOperation(
+                UUID.randomUUID(),
+                operationId,
+                transferId,
+                sourceWalletId,
+                destinationWalletId,
+                new BigDecimal("50.00"),
+                "payload-invalid",
+                TransferOperationStatus.RECONCILING,
+                "reconcile invalid state",
+                "owner-a",
+                now.plusMinutes(5),
+                now,
+                now
+        ));
+
+        assertFalse(transferOperationRepository.finalizeReconciliation(operationId, TransferOperationStatus.INITIATED, "owner-a"));
+        assertFalse(transferOperationRepository.finalizeReconciliation(operationId, TransferOperationStatus.APPLIED, "owner-b"));
+
+        transferOperationRepository.save(new TransferOperation(
+                UUID.randomUUID(),
+                operationId + "-expired",
+                UUID.randomUUID(),
+                sourceWalletId,
+                destinationWalletId,
+                new BigDecimal("55.00"),
+                "payload-expired",
+                TransferOperationStatus.RECONCILING,
+                "reconcile expired lease",
+                "owner-expired",
+                now.minusMinutes(10),
+                now.minusMinutes(10),
+                now.minusMinutes(10)
+        ));
+
+        assertFalse(transferOperationRepository.finalizeReconciliation(operationId + "-expired", TransferOperationStatus.APPLIED, "owner-expired"));
+    }
+
+    @Test
     @DisplayName("Should recover a stale initiated operation to unknown commit state without re-executing money movement")
     void shouldRecoverStaleInitiatedOperationAsUnknownCommitResult() {
         var sourceWalletId = UUID.randomUUID();

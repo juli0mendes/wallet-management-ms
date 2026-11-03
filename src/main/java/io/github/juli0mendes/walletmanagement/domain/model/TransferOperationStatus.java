@@ -23,7 +23,7 @@ public enum TransferOperationStatus {
         return switch (current) {
             case INITIATED -> next == APPLIED || next == REJECTED || next == UNKNOWN_COMMIT_RESULT;
             case UNKNOWN_COMMIT_RESULT -> next == RECONCILING;
-            case RECONCILING -> next == APPLIED || next == UNKNOWN_COMMIT_RESULT || next == RECONCILING;
+            case RECONCILING -> next == APPLIED || next == UNKNOWN_COMMIT_RESULT;
             case APPLIED, REJECTED -> false;
         };
     }

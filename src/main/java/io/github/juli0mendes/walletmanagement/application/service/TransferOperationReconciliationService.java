@@ -8,8 +8,10 @@ import io.github.juli0mendes.walletmanagement.domain.repository.TransactionRepos
 import io.github.juli0mendes.walletmanagement.domain.repository.TransferOperationRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -19,20 +21,27 @@ import java.util.UUID;
 public class TransferOperationReconciliationService {
 
     private static final Logger log = LoggerFactory.getLogger(TransferOperationReconciliationService.class);
-    private static final Duration LEASE_DURATION = Duration.ofMinutes(5);
-    private static final Duration INITIATED_RECOVERY_STALE_AFTER = Duration.ofMinutes(5);
 
     private final TransferOperationRepository transferOperationRepository;
     private final TransactionRepository transactionRepository;
+    private final Clock clock;
+
+    @Value("${wallet.transfer.reconciliation.lease-duration:PT5M}")
+    private Duration leaseDuration;
+
+    @Value("${wallet.transfer.reconciliation.initiated-stale-after:PT5M}")
+    private Duration initiatedStaleAfter;
 
     public TransferOperationReconciliationService(TransferOperationRepository transferOperationRepository,
-                                                 TransactionRepository transactionRepository) {
+                                                 TransactionRepository transactionRepository,
+                                                 Clock clock) {
         this.transferOperationRepository = transferOperationRepository;
         this.transactionRepository = transactionRepository;
+        this.clock = clock == null ? Clock.systemUTC() : clock;
     }
 
     public void reconcileUnknownOperations(int batchLimit) {
-        List<TransferOperation> operations = transferOperationRepository.findPendingReconciliation(batchLimit, LocalDateTime.now());
+        List<TransferOperation> operations = transferOperationRepository.findPendingReconciliation(batchLimit, LocalDateTime.now(clock));
         for (TransferOperation operation : operations) {
             reconcileOperation(operation);
         }
@@ -45,7 +54,7 @@ public class TransferOperationReconciliationService {
 
         String operationId = operation.getOperationId();
         String leaseOwner = UUID.randomUUID().toString();
-        LocalDateTime leaseExpiresAt = LocalDateTime.now().plus(LEASE_DURATION);
+        LocalDateTime leaseExpiresAt = LocalDateTime.now(clock).plus(leaseDuration);
 
         if (operation.getStatus() == TransferOperationStatus.INITIATED && !isRecoverableInitiatedOperation(operation)) {
             return false;
@@ -98,8 +107,13 @@ public class TransferOperationReconciliationService {
             return false;
         }
 
-        Duration elapsed = Duration.between(operation.getUpdatedAt(), LocalDateTime.now());
-        return !elapsed.isNegative() && elapsed.compareTo(INITIATED_RECOVERY_STALE_AFTER) >= 0 && !hasConfirmedFinancialEvidence(operation);
+        LocalDateTime now = LocalDateTime.now(clock);
+        if (operation.getLeaseOwner() != null && operation.getLeaseExpiresAt() != null && !operation.getLeaseExpiresAt().isBefore(now)) {
+            return false;
+        }
+
+        Duration elapsed = Duration.between(operation.getUpdatedAt(), now);
+        return !elapsed.isNegative() && elapsed.compareTo(initiatedStaleAfter) >= 0 && !hasConfirmedFinancialEvidence(operation);
     }
 
     private boolean hasConfirmedFinancialEvidence(TransferOperation operation) {

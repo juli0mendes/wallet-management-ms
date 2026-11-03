@@ -14,6 +14,7 @@ import io.github.juli0mendes.walletmanagement.domain.repository.WalletRepository
 import io.github.juli0mendes.walletmanagement.dto.TransferRequest;
 import io.github.juli0mendes.walletmanagement.dto.TransferResponse;
 import io.github.juli0mendes.walletmanagement.exception.WalletNotFoundException;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.mongodb.MongoTransactionManager;
 import org.springframework.stereotype.Component;
@@ -23,6 +24,8 @@ import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Clock;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
@@ -34,21 +37,27 @@ public class TransferUseCase {
     private final TransactionRepository transactionRepository;
     private final TransferOperationRepository transferOperationRepository;
     private final TransactionTemplate transactionTemplate;
+    private final Clock clock;
+
+    @Value("${wallet.transfer.reconciliation.lease-duration:PT5M}")
+    private Duration executionLeaseDuration;
 
     public TransferUseCase(WalletRepository walletRepository,
                            TransactionRepository transactionRepository,
                            TransferOperationRepository transferOperationRepository) {
-        this(walletRepository, transactionRepository, transferOperationRepository, null);
+        this(walletRepository, transactionRepository, transferOperationRepository, Clock.systemDefaultZone(), null);
     }
 
     @org.springframework.beans.factory.annotation.Autowired
     public TransferUseCase(WalletRepository walletRepository,
                            TransactionRepository transactionRepository,
                            TransferOperationRepository transferOperationRepository,
+                           Clock clock,
                            MongoTransactionManager mongoTransactionManager) {
         this.walletRepository = walletRepository;
         this.transactionRepository = transactionRepository;
         this.transferOperationRepository = transferOperationRepository;
+        this.clock = clock == null ? Clock.systemDefaultZone() : clock;
         this.transactionTemplate = mongoTransactionManager == null ? null : new TransactionTemplate(mongoTransactionManager);
     }
 
@@ -70,7 +79,7 @@ public class TransferUseCase {
         }
 
         UUID transferId = UUID.randomUUID();
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(clock);
         TransferOperation operation = new TransferOperation(
                 UUID.randomUUID(),
                 operationId,
@@ -95,6 +104,12 @@ public class TransferUseCase {
             throw ex;
         }
 
+        String executionOwner = "transfer-execution:" + operationId;
+        LocalDateTime executionLeaseExpiresAt = LocalDateTime.now(clock).plus(executionLeaseDuration);
+        if (!transferOperationRepository.markExecutionInProgress(operationId, executionOwner, executionLeaseExpiresAt)) {
+            throw new IllegalStateException("Transfer execution lease could not be acquired for operation id: " + operationId);
+        }
+
         try {
             if (transactionTemplate == null) {
                 return executeTransactionalLogic(request, operationId, payloadHash, transferId, now);
@@ -116,6 +131,7 @@ public class TransferUseCase {
                                                      String payloadHash,
                                                      UUID transferId,
                                                      LocalDateTime now) {
+        LocalDateTime executionNow = LocalDateTime.now(clock);
         UUID sourceWalletId = request.sourceWalletId();
         UUID destinationWalletId = request.destinationWalletId();
         BigDecimal amount = request.amount();

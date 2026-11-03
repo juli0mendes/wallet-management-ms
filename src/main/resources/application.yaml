@@ -28,6 +28,8 @@ wallet:
       fixed-delay: 30000
       initial-delay: 5000
       batch-limit: 20
+      lease-duration: PT5M
+      initiated-stale-after: PT5M
 
 management:
   endpoints:

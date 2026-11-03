@@ -4,6 +4,7 @@ import io.github.juli0mendes.walletmanagement.domain.model.TransferOperation;
 import io.github.juli0mendes.walletmanagement.domain.model.TransferOperationStatus;
 import io.github.juli0mendes.walletmanagement.domain.repository.TransferOperationRepository;
 import io.github.juli0mendes.walletmanagement.infrastructure.persistence.mapper.TransferOperationMapper;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
@@ -12,6 +13,8 @@ import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Repository;
 
+import java.time.Clock;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -22,13 +25,22 @@ public class MongoTransferOperationRepository implements TransferOperationReposi
     private final TransferOperationDataRepository transferOperationDataRepository;
     private final TransferOperationMapper transferOperationMapper;
     private final MongoTemplate mongoTemplate;
+    private final Clock clock;
+
+    @Value("${wallet.transfer.reconciliation.lease-duration:PT5M}")
+    private Duration leaseDuration;
+
+    @Value("${wallet.transfer.reconciliation.initiated-stale-after:PT5M}")
+    private Duration initiatedStaleAfter;
 
     public MongoTransferOperationRepository(TransferOperationDataRepository transferOperationDataRepository,
                                            TransferOperationMapper transferOperationMapper,
-                                           MongoTemplate mongoTemplate) {
+                                           MongoTemplate mongoTemplate,
+                                           Clock clock) {
         this.transferOperationDataRepository = transferOperationDataRepository;
         this.transferOperationMapper = transferOperationMapper;
         this.mongoTemplate = mongoTemplate;
+        this.clock = clock == null ? Clock.systemUTC() : clock;
     }
 
     @Override
@@ -50,7 +62,7 @@ public class MongoTransferOperationRepository implements TransferOperationReposi
 
     @Override
     public List<TransferOperation> findPendingReconciliation(int limit, LocalDateTime asOf) {
-        LocalDateTime staleInitiatedThreshold = asOf.minusMinutes(5);
+        LocalDateTime staleInitiatedThreshold = asOf.minus(initiatedStaleAfter);
 
         Criteria criteria = new Criteria().orOperator(
                 Criteria.where("status").is(TransferOperationStatus.UNKNOWN_COMMIT_RESULT.name()),
@@ -81,12 +93,38 @@ public class MongoTransferOperationRepository implements TransferOperationReposi
     }
 
     @Override
+    public boolean markExecutionInProgress(String operationId, String executionOwner, LocalDateTime leaseExpiresAt) {
+        if (operationId == null || operationId.isBlank() || executionOwner == null || executionOwner.isBlank() || leaseExpiresAt == null) {
+            return false;
+        }
+
+        LocalDateTime now = LocalDateTime.now(clock);
+        Query query = new Query(Criteria.where("operationId").is(operationId)
+                .and("status").is(TransferOperationStatus.INITIATED.name())
+                .andOperator(
+                        new Criteria().orOperator(
+                                Criteria.where("leaseOwner").exists(false),
+                                Criteria.where("leaseOwner").is(executionOwner),
+                                Criteria.where("leaseExpiresAt").lt(now)
+                        )
+                ));
+        Update update = new Update()
+                .set("leaseOwner", executionOwner)
+                .set("leaseExpiresAt", leaseExpiresAt)
+                .set("updatedAt", now);
+
+        return mongoTemplate.updateFirst(query, update,
+                io.github.juli0mendes.walletmanagement.infrastructure.persistence.document.TransferOperationDocument.class)
+                .getModifiedCount() > 0;
+    }
+
+    @Override
     public boolean updateStatus(String operationId, TransferOperationStatus status) {
         if (operationId == null || operationId.isBlank() || status == null) {
             return false;
         }
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(clock);
         List<TransferOperationStatus> allowedCurrentStatuses = switch (status) {
             case APPLIED -> List.of(TransferOperationStatus.INITIATED, TransferOperationStatus.RECONCILING);
             case REJECTED -> List.of(TransferOperationStatus.INITIATED);
@@ -120,13 +158,14 @@ public class MongoTransferOperationRepository implements TransferOperationReposi
 
     @Override
     public boolean markReconciliationInProgress(String operationId) {
+        LocalDateTime now = LocalDateTime.now(clock);
         Query query = new Query(Criteria.where("operationId").is(operationId)
                 .and("status").is(TransferOperationStatus.UNKNOWN_COMMIT_RESULT.name()));
         Update update = new Update()
                 .set("status", TransferOperationStatus.RECONCILING.name())
-                .set("updatedAt", LocalDateTime.now())
+                .set("updatedAt", now)
                 .set("leaseOwner", "system")
-                .set("leaseExpiresAt", LocalDateTime.now().plusMinutes(5));
+                .set("leaseExpiresAt", now.plus(leaseDuration));
 
         return mongoTemplate.updateFirst(query, update,
                 io.github.juli0mendes.walletmanagement.infrastructure.persistence.document.TransferOperationDocument.class)
@@ -139,10 +178,10 @@ public class MongoTransferOperationRepository implements TransferOperationReposi
             return false;
         }
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(clock);
         Criteria statusCriteria = new Criteria().orOperator(
                 Criteria.where("status").is(TransferOperationStatus.INITIATED.name())
-                        .and("updatedAt").lt(now.minusMinutes(5)),
+                        .and("updatedAt").lt(now.minus(initiatedStaleAfter)),
                 Criteria.where("status").is(TransferOperationStatus.UNKNOWN_COMMIT_RESULT.name()),
                 Criteria.where("status").is(TransferOperationStatus.RECONCILING.name())
         );
@@ -171,7 +210,11 @@ public class MongoTransferOperationRepository implements TransferOperationReposi
             return false;
         }
 
-        LocalDateTime now = LocalDateTime.now();
+        if (!TransferOperationStatus.canTransition(TransferOperationStatus.RECONCILING, status)) {
+            return false;
+        }
+
+        LocalDateTime now = LocalDateTime.now(clock);
         Query query = new Query(Criteria.where("operationId").is(operationId)
                 .and("status").is(TransferOperationStatus.RECONCILING.name())
                 .and("leaseOwner").is(leaseOwner)
