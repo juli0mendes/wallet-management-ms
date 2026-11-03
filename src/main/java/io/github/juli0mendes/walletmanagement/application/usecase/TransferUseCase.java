@@ -158,7 +158,9 @@ public class TransferUseCase {
         );
         transactionRepository.save(destTransaction);
 
-        transferOperationRepository.updateStatus(operationId, TransferOperationStatus.APPLIED);
+        if (!transferOperationRepository.updateStatus(operationId, TransferOperationStatus.APPLIED)) {
+            throw new IllegalStateException("Transfer operation transition to APPLIED failed for operation id: " + operationId);
+        }
 
         return new TransferResponse(
                 transferId,

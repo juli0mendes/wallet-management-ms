@@ -50,10 +50,14 @@ public class MongoTransferOperationRepository implements TransferOperationReposi
 
     @Override
     public List<TransferOperation> findPendingReconciliation(int limit, LocalDateTime asOf) {
+        LocalDateTime staleInitiatedThreshold = asOf.minusMinutes(5);
+
         Criteria criteria = new Criteria().orOperator(
                 Criteria.where("status").is(TransferOperationStatus.UNKNOWN_COMMIT_RESULT.name()),
                 Criteria.where("status").is(TransferOperationStatus.RECONCILING.name())
-                        .andOperator(Criteria.where("leaseExpiresAt").lt(asOf))
+                        .andOperator(Criteria.where("leaseExpiresAt").lt(asOf)),
+                Criteria.where("status").is(TransferOperationStatus.INITIATED.name())
+                        .andOperator(Criteria.where("updatedAt").lt(staleInitiatedThreshold))
         );
 
         Query query = new Query(criteria)
@@ -136,13 +140,19 @@ public class MongoTransferOperationRepository implements TransferOperationReposi
         }
 
         LocalDateTime now = LocalDateTime.now();
+        Criteria statusCriteria = new Criteria().orOperator(
+                Criteria.where("status").is(TransferOperationStatus.INITIATED.name())
+                        .and("updatedAt").lt(now.minusMinutes(5)),
+                Criteria.where("status").is(TransferOperationStatus.UNKNOWN_COMMIT_RESULT.name()),
+                Criteria.where("status").is(TransferOperationStatus.RECONCILING.name())
+        );
+        Criteria leaseCriteria = new Criteria().orOperator(
+                Criteria.where("leaseOwner").exists(false),
+                Criteria.where("leaseOwner").is(leaseOwner),
+                Criteria.where("leaseExpiresAt").lt(now)
+        );
         Criteria criteria = Criteria.where("operationId").is(operationId)
-                .and("status").in(TransferOperationStatus.UNKNOWN_COMMIT_RESULT.name(), TransferOperationStatus.RECONCILING.name())
-                .andOperator(new Criteria().orOperator(
-                        Criteria.where("leaseOwner").exists(false),
-                        Criteria.where("leaseOwner").is(leaseOwner),
-                        Criteria.where("leaseExpiresAt").lt(now)
-                ));
+                .andOperator(statusCriteria, leaseCriteria);
 
         Update update = new Update()
                 .set("status", TransferOperationStatus.RECONCILING.name())
@@ -161,14 +171,16 @@ public class MongoTransferOperationRepository implements TransferOperationReposi
             return false;
         }
 
+        LocalDateTime now = LocalDateTime.now();
         Query query = new Query(Criteria.where("operationId").is(operationId)
                 .and("status").is(TransferOperationStatus.RECONCILING.name())
-                .and("leaseOwner").is(leaseOwner));
+                .and("leaseOwner").is(leaseOwner)
+                .and("leaseExpiresAt").gt(now));
         Update update = new Update()
                 .set("status", status.name())
                 .set("leaseOwner", null)
                 .set("leaseExpiresAt", null)
-                .set("updatedAt", LocalDateTime.now());
+                .set("updatedAt", now);
 
         return mongoTemplate.updateFirst(query, update,
                 io.github.juli0mendes.walletmanagement.infrastructure.persistence.document.TransferOperationDocument.class)

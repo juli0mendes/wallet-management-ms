@@ -62,6 +62,7 @@ class TransferUseCaseTest {
         when(walletRepository.findById(destinationWalletId)).thenReturn(Optional.of(destWallet));
         when(walletRepository.save(any(Wallet.class))).thenReturn(sourceWallet, destWallet);
         when(transactionRepository.save(any(Transaction.class))).thenReturn(new Transaction(UUID.randomUUID(), sourceWalletId, TransactionType.TRANSFER_OUT, BigDecimal.valueOf(100.00), BigDecimal.valueOf(100.00), "Test transfer", now));
+        when(transferOperationRepository.updateStatus("op-success-1", TransferOperationStatus.APPLIED)).thenReturn(true);
 
         TransferResponse response = transferUseCase.execute(request);
 

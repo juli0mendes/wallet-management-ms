@@ -23,6 +23,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.data.mongodb.MongoTransactionManager;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -48,6 +49,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doReturn;
 
 @SpringBootTest(properties = {
         "de.flapdoodle.mongodb.embedded.enabled=false",
@@ -80,6 +84,9 @@ class TransferUseCaseTransactionIntegrationTest {
 
     @Autowired
     private TransferUseCase transferUseCase;
+
+    @SpyBean
+    private TransferOperationRepository transferOperationRepositorySpy;
 
     @Autowired
     private TransferOperationReconciliationService reconciliationService;
@@ -401,6 +408,65 @@ class TransferUseCaseTransactionIntegrationTest {
     }
 
     @Test
+    @DisplayName("Should not recover a recent initiated operation while it may still be active")
+    void shouldNotRecoverRecentInitiatedOperation() {
+        var sourceWalletId = UUID.randomUUID();
+        var destinationWalletId = UUID.randomUUID();
+        var amount = new BigDecimal("40.00");
+        var operationId = "initiated-recent";
+        var now = LocalDateTime.now();
+
+        transferOperationRepository.save(new TransferOperation(
+                UUID.randomUUID(),
+                operationId,
+                UUID.randomUUID(),
+                sourceWalletId,
+                destinationWalletId,
+                amount,
+                "payload-recent",
+                TransferOperationStatus.INITIATED,
+                "recent transfer",
+                now,
+                now
+        ));
+
+        var operation = transferOperationRepository.findByOperationId(operationId).orElseThrow();
+        assertFalse(reconciliationService.reconcileOperation(operation));
+        assertEquals(TransferOperationStatus.INITIATED,
+                transferOperationRepository.findByOperationId(operationId).orElseThrow().getStatus());
+    }
+
+    @Test
+    @DisplayName("Should recover a stale initiated operation to unknown commit state without re-executing money movement")
+    void shouldRecoverStaleInitiatedOperationAsUnknownCommitResult() {
+        var sourceWalletId = UUID.randomUUID();
+        var destinationWalletId = UUID.randomUUID();
+        var amount = new BigDecimal("40.00");
+        var operationId = "initiated-stale";
+        var now = LocalDateTime.now().minusMinutes(10);
+
+        transferOperationRepository.save(new TransferOperation(
+                UUID.randomUUID(),
+                operationId,
+                UUID.randomUUID(),
+                sourceWalletId,
+                destinationWalletId,
+                amount,
+                "payload-stale",
+                TransferOperationStatus.INITIATED,
+                "stale transfer",
+                now,
+                now
+        ));
+
+        var operation = transferOperationRepository.findByOperationId(operationId).orElseThrow();
+        assertFalse(reconciliationService.reconcileOperation(operation));
+        assertEquals(TransferOperationStatus.UNKNOWN_COMMIT_RESULT,
+                transferOperationRepository.findByOperationId(operationId).orElseThrow().getStatus());
+        assertTrue(transactionDataRepository.findAll().isEmpty());
+    }
+
+    @Test
     @DisplayName("Should keep an operation in unknown state when no financial evidence exists")
     void shouldKeepUnknownStatusWhenNoFinancialEvidenceExists() {
         var sourceWalletId = UUID.randomUUID();
@@ -568,6 +634,37 @@ class TransferUseCaseTransactionIntegrationTest {
         assertEquals(new BigDecimal("50.00"), walletRepository.findById(destinationWalletId).orElseThrow().getBalance());
         assertTrue(transactionDataRepository.findByWalletId(sourceWalletId.toString()).isEmpty());
         assertTrue(transactionDataRepository.findByWalletId(destinationWalletId.toString()).isEmpty());
+    }
+
+    @Test
+    @DisplayName("Should rollback if the APPLIED transition is not persisted in the same transaction")
+    void shouldRollbackWhenAppliedTransitionFails() {
+        var sourceWalletId = UUID.randomUUID();
+        var destinationWalletId = UUID.randomUUID();
+        var now = LocalDateTime.now();
+        var operationId = "applied-transition-fails";
+        var amount = new BigDecimal("35.00");
+
+        walletRepository.save(new Wallet(sourceWalletId, "John Doe", "john@example.com", new BigDecimal("200.00"), now, now));
+        walletRepository.save(new Wallet(destinationWalletId, "Jane Doe", "jane@example.com", new BigDecimal("50.00"), now, now));
+
+        doReturn(false).when(transferOperationRepositorySpy)
+                .updateStatus(anyString(), eq(TransferOperationStatus.APPLIED));
+
+        var ex = assertThrows(IllegalStateException.class, () -> transferUseCase.execute(new TransferRequest(
+                sourceWalletId,
+                destinationWalletId,
+                amount,
+                "applied transition fail",
+                operationId
+        )));
+
+        assertTrue(ex.getMessage().contains("APPLIED"));
+        assertEquals(new BigDecimal("200.00"), walletRepository.findById(sourceWalletId).orElseThrow().getBalance());
+        assertEquals(new BigDecimal("50.00"), walletRepository.findById(destinationWalletId).orElseThrow().getBalance());
+        assertTrue(transactionDataRepository.findAll().isEmpty());
+        assertEquals(TransferOperationStatus.INITIATED,
+                transferOperationRepository.findByOperationId(operationId).orElseThrow().getStatus());
     }
 
     @Test

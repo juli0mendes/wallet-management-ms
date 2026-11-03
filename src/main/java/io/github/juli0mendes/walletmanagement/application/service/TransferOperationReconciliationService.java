@@ -20,6 +20,7 @@ public class TransferOperationReconciliationService {
 
     private static final Logger log = LoggerFactory.getLogger(TransferOperationReconciliationService.class);
     private static final Duration LEASE_DURATION = Duration.ofMinutes(5);
+    private static final Duration INITIATED_RECOVERY_STALE_AFTER = Duration.ofMinutes(5);
 
     private final TransferOperationRepository transferOperationRepository;
     private final TransactionRepository transactionRepository;
@@ -46,6 +47,10 @@ public class TransferOperationReconciliationService {
         String leaseOwner = UUID.randomUUID().toString();
         LocalDateTime leaseExpiresAt = LocalDateTime.now().plus(LEASE_DURATION);
 
+        if (operation.getStatus() == TransferOperationStatus.INITIATED && !isRecoverableInitiatedOperation(operation)) {
+            return false;
+        }
+
         if (!transferOperationRepository.acquireReconciliationLease(operationId, leaseOwner, leaseExpiresAt)) {
             return false;
         }
@@ -64,6 +69,16 @@ public class TransferOperationReconciliationService {
             return false;
         }
 
+        if (operation.getStatus() == TransferOperationStatus.INITIATED) {
+            boolean finalized = transferOperationRepository.finalizeReconciliation(operationId, TransferOperationStatus.UNKNOWN_COMMIT_RESULT, leaseOwner);
+            if (finalized) {
+                log.warn("Stale INITIATED operation moved to UNKNOWN_COMMIT_RESULT operationId={} transferId={}", operationId, operation.getTransferId());
+                return false;
+            }
+            log.warn("Unable to finalize stale INITIATED operation operationId={} transferId={}", operationId, operation.getTransferId());
+            return false;
+        }
+
         boolean finalized = transferOperationRepository.finalizeReconciliation(operationId, TransferOperationStatus.UNKNOWN_COMMIT_RESULT, leaseOwner);
         if (finalized) {
             log.warn("Transfer operation remains indeterminate after reconciliation operationId={} transferId={}", operationId, operation.getTransferId());
@@ -72,6 +87,19 @@ public class TransferOperationReconciliationService {
 
         log.warn("Unable to finalize indeterminate operation operationId={} transferId={}", operationId, operation.getTransferId());
         return false;
+    }
+
+    private boolean isRecoverableInitiatedOperation(TransferOperation operation) {
+        if (operation == null || operation.getStatus() != TransferOperationStatus.INITIATED) {
+            return false;
+        }
+
+        if (operation.getUpdatedAt() == null) {
+            return false;
+        }
+
+        Duration elapsed = Duration.between(operation.getUpdatedAt(), LocalDateTime.now());
+        return !elapsed.isNegative() && elapsed.compareTo(INITIATED_RECOVERY_STALE_AFTER) >= 0 && !hasConfirmedFinancialEvidence(operation);
     }
 
     private boolean hasConfirmedFinancialEvidence(TransferOperation operation) {
