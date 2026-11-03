@@ -17,6 +17,10 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.mongodb.MongoTransactionManager;
@@ -41,6 +45,7 @@ import java.util.concurrent.Future;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -522,6 +527,76 @@ class TransferUseCaseTransactionIntegrationTest {
     }
 
     @Test
+    @DisplayName("Should keep initiated operation pending and never report it as completed")
+    void shouldKeepInitiatedOperationPendingAndNeverReportCompleted() {
+        var sourceWalletId = UUID.randomUUID();
+        var destinationWalletId = UUID.randomUUID();
+        var now = LocalDateTime.now();
+        var operationId = "initiated-pending";
+        var amount = new BigDecimal("25.00");
+        var description = "pending transfer";
+        var payloadHash = buildPayloadHash(sourceWalletId, destinationWalletId, amount, description);
+
+        walletRepository.save(new Wallet(sourceWalletId, "John Doe", "john@example.com", new BigDecimal("200.00"), now, now));
+        walletRepository.save(new Wallet(destinationWalletId, "Jane Doe", "jane@example.com", new BigDecimal("50.00"), now, now));
+
+        transferOperationRepository.save(new TransferOperation(
+                UUID.randomUUID(),
+                operationId,
+                UUID.randomUUID(),
+                sourceWalletId,
+                destinationWalletId,
+                amount,
+                payloadHash,
+                TransferOperationStatus.INITIATED,
+                description,
+                now,
+                now
+        ));
+
+        var response = transferUseCase.execute(new TransferRequest(
+                sourceWalletId,
+                destinationWalletId,
+                amount,
+                description,
+                operationId
+        ));
+
+        assertEquals("INITIATED", response.getStatus());
+        assertNotEquals("COMPLETED", response.getStatus());
+        assertEquals(new BigDecimal("200.00"), walletRepository.findById(sourceWalletId).orElseThrow().getBalance());
+        assertEquals(new BigDecimal("50.00"), walletRepository.findById(destinationWalletId).orElseThrow().getBalance());
+        assertTrue(transactionDataRepository.findByWalletId(sourceWalletId.toString()).isEmpty());
+        assertTrue(transactionDataRepository.findByWalletId(destinationWalletId.toString()).isEmpty());
+    }
+
+    @Test
+    @DisplayName("Should reject invalid terminal-state overwrite after a terminal decision")
+    void shouldRejectInvalidTerminalStateOverwrite() {
+        var operationId = "terminal-overwrite";
+        var now = LocalDateTime.now();
+        var transferId = UUID.randomUUID();
+
+        transferOperationRepository.save(new TransferOperation(
+                UUID.randomUUID(),
+                operationId,
+                transferId,
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                new BigDecimal("30.00"),
+                "hash-terminal",
+                TransferOperationStatus.APPLIED,
+                "terminal transfer",
+                now,
+                now
+        ));
+
+        assertFalse(transferOperationRepository.updateStatus(operationId, TransferOperationStatus.UNKNOWN_COMMIT_RESULT));
+        assertEquals(TransferOperationStatus.APPLIED,
+                transferOperationRepository.findByOperationId(operationId).orElseThrow().getStatus());
+    }
+
+    @Test
     @DisplayName("Should classify only Mongo unknown commit label as indeterminate")
     void shouldClassifyOnlyMongoUnknownCommitLabelAsIndeterminate() throws Exception {
         var method = TransferUseCase.class.getDeclaredMethod("isUnknownCommitResult", Throwable.class);
@@ -553,5 +628,21 @@ class TransferUseCaseTransactionIntegrationTest {
 
         var saved = transferOperationDataRepository.findByOperationId(operationId).orElseThrow();
         assertEquals("UNKNOWN_COMMIT_RESULT", saved.getStatus());
+    }
+
+    private String buildPayloadHash(UUID sourceWalletId, UUID destinationWalletId, BigDecimal amount, String description) {
+        String payload = sourceWalletId + "|" + destinationWalletId + "|"
+                + amount.stripTrailingZeros().toPlainString() + "|" + description;
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(payload.getBytes(StandardCharsets.UTF_8));
+            StringBuilder hex = new StringBuilder();
+            for (byte b : hash) {
+                hex.append(String.format("%02x", b));
+            }
+            return hex.toString();
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 not available", e);
+        }
     }
 }

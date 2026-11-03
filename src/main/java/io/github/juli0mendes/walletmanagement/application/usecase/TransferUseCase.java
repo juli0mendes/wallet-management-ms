@@ -174,10 +174,11 @@ public class TransferUseCase {
 
     private TransferResponse toResponse(TransferOperation operation) {
         String responseStatus = switch (operation.getStatus()) {
+            case APPLIED -> "COMPLETED";
+            case INITIATED -> "INITIATED";
             case UNKNOWN_COMMIT_RESULT -> "UNKNOWN_COMMIT_RESULT";
             case REJECTED -> "REJECTED";
             case RECONCILING -> "RECONCILING";
-            default -> "COMPLETED";
         };
 
         return new TransferResponse(

@@ -77,15 +77,41 @@ public class MongoTransferOperationRepository implements TransferOperationReposi
     }
 
     @Override
-    public void updateStatus(String operationId, TransferOperationStatus status) {
-        transferOperationDataRepository.findByOperationId(operationId)
-                .ifPresent(document -> {
-                    document.setStatus(status.name());
-                    document.setUpdatedAt(LocalDateTime.now());
-                    document.setLeaseOwner(null);
-                    document.setLeaseExpiresAt(null);
-                    transferOperationDataRepository.save(document);
-                });
+    public boolean updateStatus(String operationId, TransferOperationStatus status) {
+        if (operationId == null || operationId.isBlank() || status == null) {
+            return false;
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        List<TransferOperationStatus> allowedCurrentStatuses = switch (status) {
+            case APPLIED -> List.of(TransferOperationStatus.INITIATED, TransferOperationStatus.RECONCILING);
+            case REJECTED -> List.of(TransferOperationStatus.INITIATED);
+            case UNKNOWN_COMMIT_RESULT -> List.of(TransferOperationStatus.INITIATED, TransferOperationStatus.RECONCILING);
+            case RECONCILING -> List.of(TransferOperationStatus.UNKNOWN_COMMIT_RESULT);
+            case INITIATED -> List.of();
+        };
+
+        if (allowedCurrentStatuses.isEmpty()) {
+            return false;
+        }
+
+        Query query = new Query(Criteria.where("operationId").is(operationId)
+                .and("status").in(allowedCurrentStatuses.stream().map(Enum::name).toList()));
+        Update update = new Update()
+                .set("status", status.name())
+                .set("updatedAt", now);
+
+        if (status == TransferOperationStatus.RECONCILING) {
+            update.set("leaseOwner", "system")
+                    .set("leaseExpiresAt", now.plusMinutes(5));
+        } else {
+            update.set("leaseOwner", null)
+                    .set("leaseExpiresAt", null);
+        }
+
+        return mongoTemplate.updateFirst(query, update,
+                io.github.juli0mendes.walletmanagement.infrastructure.persistence.document.TransferOperationDocument.class)
+                .getModifiedCount() > 0;
     }
 
     @Override

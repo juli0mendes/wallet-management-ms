@@ -67,6 +67,26 @@ class TransferControllerTest {
     }
 
     @Test
+    @DisplayName("Should acknowledge an initiated operation as pending and not as success")
+    void shouldAcknowledgeInitiatedOperationAsPending() throws Exception {
+        var sourceWalletId = UUID.randomUUID();
+        var destinationWalletId = UUID.randomUUID();
+        var request = new TransferRequest(sourceWalletId, destinationWalletId,
+                BigDecimal.valueOf(100.00), "Test pending transfer");
+
+        var response = new TransferResponse(UUID.randomUUID(), "op-pending", sourceWalletId, destinationWalletId,
+                BigDecimal.valueOf(100.00), "INITIATED", "Test pending transfer", LocalDateTime.now());
+
+        when(transferUseCase.execute(any(TransferRequest.class))).thenReturn(response);
+
+        mockMvc.perform(post("/api/v1/transfers")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.status").value("INITIATED"));
+    }
+
+    @Test
     @DisplayName("Should query a transfer operation by operation id")
     void shouldQueryTransferOperationByOperationId() throws Exception {
         var sourceWalletId = UUID.randomUUID();

@@ -43,8 +43,9 @@ public class TransferController {
                 response.getAmount(), response.getStatus());
 
         HttpStatus httpStatus = switch (response.getStatus()) {
-            case "UNKNOWN_COMMIT_RESULT", "RECONCILING" -> HttpStatus.ACCEPTED;
-            default -> HttpStatus.CREATED;
+            case "INITIATED", "UNKNOWN_COMMIT_RESULT", "RECONCILING" -> HttpStatus.ACCEPTED;
+            case "COMPLETED" -> HttpStatus.CREATED;
+            default -> HttpStatus.ACCEPTED;
         };
 
         return new ResponseEntity<>(response, httpStatus);

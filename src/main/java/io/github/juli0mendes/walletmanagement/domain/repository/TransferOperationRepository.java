@@ -12,7 +12,7 @@ public interface TransferOperationRepository {
     List<TransferOperation> findByStatus(TransferOperationStatus status, int limit);
     List<TransferOperation> findPendingReconciliation(int limit, LocalDateTime asOf);
     TransferOperation save(TransferOperation transferOperation);
-    void updateStatus(String operationId, TransferOperationStatus status);
+    boolean updateStatus(String operationId, TransferOperationStatus status);
     boolean markReconciliationInProgress(String operationId);
     boolean acquireReconciliationLease(String operationId, String leaseOwner, LocalDateTime leaseExpiresAt);
     boolean finalizeReconciliation(String operationId, TransferOperationStatus status, String leaseOwner);
