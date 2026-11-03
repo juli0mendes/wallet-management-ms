@@ -499,14 +499,16 @@ class TransferUseCaseTransactionIntegrationTest {
         assertFalse(transferOperationRepository.updateStatus(operationId, TransferOperationStatus.APPLIED,
                 "transfer-execution:" + operationId + ":1"));
 
-        assertTrue(transferOperationRepository.markExecutionInProgress(operationId,
+        assertTrue(transferOperationRepository.acquireExecutionOwnership(operationId,
                 "transfer-execution:" + operationId + ":2",
-                now.plusMinutes(10)));
+                now.plusMinutes(10)) > 0L);
 
-        assertFalse(transferOperationRepository.updateStatus(operationId, TransferOperationStatus.APPLIED,
-                "transfer-execution:" + operationId + ":1"));
-        assertTrue(transferOperationRepository.updateStatus(operationId, TransferOperationStatus.APPLIED,
-                "transfer-execution:" + operationId + ":2"));
+        assertFalse(transferOperationRepository.confirmFinancialExecution(operationId,
+                "transfer-execution:" + operationId + ":1",
+                1L));
+        assertTrue(transferOperationRepository.confirmFinancialExecution(operationId,
+                "transfer-execution:" + operationId + ":2",
+                2L));
         assertEquals(TransferOperationStatus.APPLIED,
                 transferOperationRepository.findByOperationId(operationId).orElseThrow().getStatus());
     }
@@ -536,8 +538,8 @@ class TransferUseCaseTransactionIntegrationTest {
                 now
         ));
 
-        assertFalse(transferOperationRepository.finalizeReconciliation(operationId, TransferOperationStatus.INITIATED, "owner-a"));
-        assertFalse(transferOperationRepository.finalizeReconciliation(operationId, TransferOperationStatus.APPLIED, "owner-b"));
+        assertFalse(transferOperationRepository.finalizeReconciliation(operationId, TransferOperationStatus.INITIATED, "owner-a", 1L));
+        assertFalse(transferOperationRepository.finalizeReconciliation(operationId, TransferOperationStatus.APPLIED, "owner-b", 1L));
 
         transferOperationRepository.save(new TransferOperation(
                 UUID.randomUUID(),
@@ -555,7 +557,7 @@ class TransferUseCaseTransactionIntegrationTest {
                 now.minusMinutes(10)
         ));
 
-        assertFalse(transferOperationRepository.finalizeReconciliation(operationId + "-expired", TransferOperationStatus.APPLIED, "owner-expired"));
+        assertFalse(transferOperationRepository.finalizeReconciliation(operationId + "-expired", TransferOperationStatus.APPLIED, "owner-expired", 1L));
     }
 
     @Test
@@ -709,7 +711,7 @@ class TransferUseCaseTransactionIntegrationTest {
 
         assertTrue(transferOperationRepository.acquireReconciliationLease(operationId, "owner-a", now.minusMinutes(5)));
         assertTrue(transferOperationRepository.acquireReconciliationLease(operationId, "owner-b", now.plusMinutes(5)));
-        assertFalse(transferOperationRepository.finalizeReconciliation(operationId, TransferOperationStatus.APPLIED, "owner-a"));
+        assertFalse(transferOperationRepository.finalizeReconciliation(operationId, TransferOperationStatus.APPLIED, "owner-a", 1L));
         assertEquals(TransferOperationStatus.RECONCILING,
                 transferOperationRepository.findByOperationId(operationId).orElseThrow().getStatus());
     }

@@ -17,30 +17,41 @@ public class TransferOperation {
     private final String description;
     private final String leaseOwner;
     private final LocalDateTime leaseExpiresAt;
+    private final long fencingToken;
     private final LocalDateTime createdAt;
     private final LocalDateTime updatedAt;
 
     public TransferOperation(UUID id, String operationId, String payloadHash,
                              TransferOperationStatus status, String description,
                              LocalDateTime createdAt, LocalDateTime updatedAt) {
-        this(id, operationId, UUID.randomUUID(), null, null, null, payloadHash, status, description, null, null, createdAt, updatedAt);
+        this(id, operationId, UUID.randomUUID(), null, null, null, payloadHash, status, description, null, null, 0L, createdAt, updatedAt);
     }
 
     public TransferOperation(UUID id, String operationId, UUID transferId,
-                            UUID sourceWalletId, UUID destinationWalletId,
-                            BigDecimal amount, String payloadHash,
-                            TransferOperationStatus status, String description,
-                            LocalDateTime createdAt, LocalDateTime updatedAt) {
+                             UUID sourceWalletId, UUID destinationWalletId,
+                             BigDecimal amount, String payloadHash,
+                             TransferOperationStatus status, String description,
+                             LocalDateTime createdAt, LocalDateTime updatedAt) {
         this(id, operationId, transferId, sourceWalletId, destinationWalletId, amount, payloadHash,
-                status, description, null, null, createdAt, updatedAt);
+                status, description, null, null, 0L, createdAt, updatedAt);
     }
 
     public TransferOperation(UUID id, String operationId, UUID transferId,
-                            UUID sourceWalletId, UUID destinationWalletId,
-                            BigDecimal amount, String payloadHash,
-                            TransferOperationStatus status, String description,
-                            String leaseOwner, LocalDateTime leaseExpiresAt,
-                            LocalDateTime createdAt, LocalDateTime updatedAt) {
+                             UUID sourceWalletId, UUID destinationWalletId,
+                             BigDecimal amount, String payloadHash,
+                             TransferOperationStatus status, String description,
+                             String leaseOwner, LocalDateTime leaseExpiresAt,
+                             LocalDateTime createdAt, LocalDateTime updatedAt) {
+        this(id, operationId, transferId, sourceWalletId, destinationWalletId, amount, payloadHash,
+                status, description, leaseOwner, leaseExpiresAt, 0L, createdAt, updatedAt);
+    }
+
+    public TransferOperation(UUID id, String operationId, UUID transferId,
+                             UUID sourceWalletId, UUID destinationWalletId,
+                             BigDecimal amount, String payloadHash,
+                             TransferOperationStatus status, String description,
+                             String leaseOwner, LocalDateTime leaseExpiresAt,
+                             long fencingToken, LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = Objects.requireNonNull(id, "Transfer operation id cannot be null");
         this.operationId = Objects.requireNonNull(operationId, "Operation id cannot be null");
         this.transferId = Objects.requireNonNull(transferId, "Transfer id cannot be null");
@@ -52,6 +63,7 @@ public class TransferOperation {
         this.description = description;
         this.leaseOwner = leaseOwner;
         this.leaseExpiresAt = leaseExpiresAt;
+        this.fencingToken = fencingToken;
         this.createdAt = Objects.requireNonNull(createdAt, "Created at cannot be null");
         this.updatedAt = Objects.requireNonNull(updatedAt, "Updated at cannot be null");
     }
@@ -98,6 +110,10 @@ public class TransferOperation {
 
     public LocalDateTime getLeaseExpiresAt() {
         return leaseExpiresAt;
+    }
+
+    public long getFencingToken() {
+        return fencingToken;
     }
 
     public LocalDateTime getCreatedAt() {

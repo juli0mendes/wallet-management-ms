@@ -60,7 +60,8 @@ public class TransferOperationReconciliationService {
             return false;
         }
 
-        if (!transferOperationRepository.acquireReconciliationLease(operationId, leaseOwner, leaseExpiresAt)) {
+        long fencingToken = transferOperationRepository.acquireReconciliationLeaseToken(operationId, leaseOwner, leaseExpiresAt);
+        if (fencingToken < 1L) {
             return false;
         }
 
@@ -69,7 +70,7 @@ public class TransferOperationReconciliationService {
 
         boolean hasFinancialEvidence = hasConfirmedFinancialEvidence(operation);
         if (hasFinancialEvidence) {
-            boolean finalized = transferOperationRepository.finalizeReconciliation(operationId, TransferOperationStatus.APPLIED, leaseOwner);
+            boolean finalized = transferOperationRepository.finalizeReconciliation(operationId, TransferOperationStatus.APPLIED, leaseOwner, fencingToken);
             if (finalized) {
                 log.info("Transfer operation reconciled as applied operationId={} transferId={}", operationId, operation.getTransferId());
                 return true;
@@ -79,7 +80,7 @@ public class TransferOperationReconciliationService {
         }
 
         if (operation.getStatus() == TransferOperationStatus.INITIATED) {
-            boolean finalized = transferOperationRepository.finalizeReconciliation(operationId, TransferOperationStatus.UNKNOWN_COMMIT_RESULT, leaseOwner);
+            boolean finalized = transferOperationRepository.finalizeReconciliation(operationId, TransferOperationStatus.UNKNOWN_COMMIT_RESULT, leaseOwner, fencingToken);
             if (finalized) {
                 log.warn("Stale INITIATED operation moved to UNKNOWN_COMMIT_RESULT operationId={} transferId={}", operationId, operation.getTransferId());
                 return false;
@@ -88,7 +89,7 @@ public class TransferOperationReconciliationService {
             return false;
         }
 
-        boolean finalized = transferOperationRepository.finalizeReconciliation(operationId, TransferOperationStatus.UNKNOWN_COMMIT_RESULT, leaseOwner);
+        boolean finalized = transferOperationRepository.finalizeReconciliation(operationId, TransferOperationStatus.UNKNOWN_COMMIT_RESULT, leaseOwner, fencingToken);
         if (finalized) {
             log.warn("Transfer operation remains indeterminate after reconciliation operationId={} transferId={}", operationId, operation.getTransferId());
             return false;

@@ -14,8 +14,12 @@ public interface TransferOperationRepository {
     TransferOperation save(TransferOperation transferOperation);
     boolean updateStatus(String operationId, TransferOperationStatus status);
     boolean updateStatus(String operationId, TransferOperationStatus status, String expectedLeaseOwner);
+    long acquireExecutionOwnership(String operationId, String executionOwner, LocalDateTime leaseExpiresAt);
     boolean markExecutionInProgress(String operationId, String executionOwner, LocalDateTime leaseExpiresAt);
+    boolean confirmFinancialExecution(String operationId, String executionOwner, long fencingToken);
     boolean markReconciliationInProgress(String operationId);
     boolean acquireReconciliationLease(String operationId, String leaseOwner, LocalDateTime leaseExpiresAt);
+    long acquireReconciliationLeaseToken(String operationId, String leaseOwner, LocalDateTime leaseExpiresAt);
     boolean finalizeReconciliation(String operationId, TransferOperationStatus status, String leaseOwner);
+    boolean finalizeReconciliation(String operationId, TransferOperationStatus status, String leaseOwner, long fencingToken);
 }

@@ -23,6 +23,7 @@ public class TransferOperationMapper {
                 transferOperation.getDescription(),
                 transferOperation.getLeaseOwner(),
                 transferOperation.getLeaseExpiresAt(),
+                transferOperation.getFencingToken(),
                 transferOperation.getCreatedAt(),
                 transferOperation.getUpdatedAt()
         );
@@ -41,6 +42,7 @@ public class TransferOperationMapper {
                 document.getDescription(),
                 document.getLeaseOwner(),
                 document.getLeaseExpiresAt(),
+                document.getFencingToken(),
                 document.getCreatedAt(),
                 document.getUpdatedAt()
         );

@@ -7,6 +7,7 @@ import io.github.juli0mendes.walletmanagement.infrastructure.persistence.mapper.
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.mongodb.core.FindAndModifyOptions;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
@@ -93,9 +94,9 @@ public class MongoTransferOperationRepository implements TransferOperationReposi
     }
 
     @Override
-    public boolean markExecutionInProgress(String operationId, String executionOwner, LocalDateTime leaseExpiresAt) {
+    public long acquireExecutionOwnership(String operationId, String executionOwner, LocalDateTime leaseExpiresAt) {
         if (operationId == null || operationId.isBlank() || executionOwner == null || executionOwner.isBlank() || leaseExpiresAt == null) {
-            return false;
+            return -1L;
         }
 
         LocalDateTime now = LocalDateTime.now(clock);
@@ -111,11 +112,13 @@ public class MongoTransferOperationRepository implements TransferOperationReposi
         Update update = new Update()
                 .set("leaseOwner", executionOwner)
                 .set("leaseExpiresAt", leaseExpiresAt)
+                .inc("fencingToken", 1)
                 .set("updatedAt", now);
 
-        return mongoTemplate.updateFirst(query, update,
-                io.github.juli0mendes.walletmanagement.infrastructure.persistence.document.TransferOperationDocument.class)
-                .getModifiedCount() > 0;
+        io.github.juli0mendes.walletmanagement.infrastructure.persistence.document.TransferOperationDocument document =
+                mongoTemplate.findAndModify(query, update, FindAndModifyOptions.options().returnNew(true),
+                        io.github.juli0mendes.walletmanagement.infrastructure.persistence.document.TransferOperationDocument.class);
+        return document == null ? -1L : document.getFencingToken();
     }
 
     @Override
@@ -142,12 +145,13 @@ public class MongoTransferOperationRepository implements TransferOperationReposi
             return false;
         }
 
+        if (status == TransferOperationStatus.APPLIED) {
+            return false;
+        }
+
         Criteria criteria = Criteria.where("operationId").is(operationId)
                 .and("status").in(allowedCurrentStatuses.stream().map(Enum::name).toList());
-        if (status == TransferOperationStatus.APPLIED && expectedLeaseOwner != null && !expectedLeaseOwner.isBlank()) {
-            criteria = criteria.and("leaseOwner").is(expectedLeaseOwner)
-                    .and("leaseExpiresAt").gt(now);
-        } else if (expectedLeaseOwner != null && !expectedLeaseOwner.isBlank()) {
+        if (expectedLeaseOwner != null && !expectedLeaseOwner.isBlank()) {
             criteria = criteria.and("leaseOwner").is(expectedLeaseOwner);
         }
 
@@ -186,9 +190,34 @@ public class MongoTransferOperationRepository implements TransferOperationReposi
     }
 
     @Override
-    public boolean acquireReconciliationLease(String operationId, String leaseOwner, LocalDateTime leaseExpiresAt) {
-        if (leaseOwner == null || leaseOwner.isBlank() || leaseExpiresAt == null) {
+    public boolean markExecutionInProgress(String operationId, String executionOwner, LocalDateTime leaseExpiresAt) {
+        if (operationId == null || operationId.isBlank() || executionOwner == null || executionOwner.isBlank() || leaseExpiresAt == null) {
             return false;
+        }
+
+        LocalDateTime now = LocalDateTime.now(clock);
+        Query query = new Query(Criteria.where("operationId").is(operationId)
+                .and("status").is(TransferOperationStatus.INITIATED.name())
+                .and("leaseOwner").is(executionOwner));
+        Update update = new Update()
+                .set("leaseOwner", executionOwner)
+                .set("leaseExpiresAt", leaseExpiresAt)
+                .set("updatedAt", now);
+
+        return mongoTemplate.updateFirst(query, update,
+                io.github.juli0mendes.walletmanagement.infrastructure.persistence.document.TransferOperationDocument.class)
+                .getModifiedCount() > 0;
+    }
+
+    @Override
+    public boolean acquireReconciliationLease(String operationId, String leaseOwner, LocalDateTime leaseExpiresAt) {
+        return acquireReconciliationLeaseToken(operationId, leaseOwner, leaseExpiresAt) >= 0L;
+    }
+
+    @Override
+    public long acquireReconciliationLeaseToken(String operationId, String leaseOwner, LocalDateTime leaseExpiresAt) {
+        if (leaseOwner == null || leaseOwner.isBlank() || leaseExpiresAt == null) {
+            return -1L;
         }
 
         LocalDateTime now = LocalDateTime.now(clock);
@@ -211,15 +240,46 @@ public class MongoTransferOperationRepository implements TransferOperationReposi
                 .set("status", TransferOperationStatus.RECONCILING.name())
                 .set("leaseOwner", leaseOwner)
                 .set("leaseExpiresAt", leaseExpiresAt)
+                .inc("fencingToken", 1)
                 .set("updatedAt", now);
 
-        return mongoTemplate.updateFirst(new Query(criteria), update,
+        io.github.juli0mendes.walletmanagement.infrastructure.persistence.document.TransferOperationDocument document =
+                mongoTemplate.findAndModify(new Query(criteria), update,
+                        FindAndModifyOptions.options().returnNew(true),
+                        io.github.juli0mendes.walletmanagement.infrastructure.persistence.document.TransferOperationDocument.class);
+        return document == null ? -1L : document.getFencingToken();
+    }
+
+    @Override
+    public boolean confirmFinancialExecution(String operationId, String executionOwner, long fencingToken) {
+        if (operationId == null || operationId.isBlank() || executionOwner == null || executionOwner.isBlank()) {
+            return false;
+        }
+
+        LocalDateTime now = LocalDateTime.now(clock);
+        Query query = new Query(Criteria.where("operationId").is(operationId)
+                .and("status").in(TransferOperationStatus.INITIATED.name(), TransferOperationStatus.RECONCILING.name())
+                .and("leaseOwner").is(executionOwner)
+                .and("leaseExpiresAt").gt(now)
+                .and("fencingToken").is(fencingToken));
+        Update update = new Update()
+                .set("status", TransferOperationStatus.APPLIED.name())
+                .set("leaseOwner", null)
+                .set("leaseExpiresAt", null)
+                .set("updatedAt", now);
+
+        return mongoTemplate.updateFirst(query, update,
                 io.github.juli0mendes.walletmanagement.infrastructure.persistence.document.TransferOperationDocument.class)
                 .getModifiedCount() > 0;
     }
 
     @Override
     public boolean finalizeReconciliation(String operationId, TransferOperationStatus status, String leaseOwner) {
+        return finalizeReconciliation(operationId, status, leaseOwner, 0L);
+    }
+
+    @Override
+    public boolean finalizeReconciliation(String operationId, TransferOperationStatus status, String leaseOwner, long fencingToken) {
         if (status == null || leaseOwner == null || leaseOwner.isBlank()) {
             return false;
         }
@@ -229,10 +289,14 @@ public class MongoTransferOperationRepository implements TransferOperationReposi
         }
 
         LocalDateTime now = LocalDateTime.now(clock);
-        Query query = new Query(Criteria.where("operationId").is(operationId)
+        Criteria criteria = Criteria.where("operationId").is(operationId)
                 .and("status").is(TransferOperationStatus.RECONCILING.name())
                 .and("leaseOwner").is(leaseOwner)
-                .and("leaseExpiresAt").gt(now));
+                .and("leaseExpiresAt").gt(now);
+        if (fencingToken > 0L) {
+            criteria = criteria.and("fencingToken").is(fencingToken);
+        }
+        Query query = new Query(criteria);
         Update update = new Update()
                 .set("status", status.name())
                 .set("leaseOwner", null)

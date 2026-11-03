@@ -30,6 +30,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
@@ -53,7 +54,8 @@ class TransferUseCaseTest {
 
     @BeforeEach
     void setUp() {
-        lenient().when(transferOperationRepository.markExecutionInProgress(anyString(), anyString(), any(LocalDateTime.class))).thenReturn(true);
+        lenient().when(transferOperationRepository.acquireExecutionOwnership(anyString(), anyString(), any(LocalDateTime.class))).thenReturn(1L);
+        lenient().when(transferOperationRepository.confirmFinancialExecution(anyString(), anyString(), anyLong())).thenReturn(true);
     }
 
     @Test
@@ -72,7 +74,7 @@ class TransferUseCaseTest {
         when(walletRepository.save(any(Wallet.class))).thenReturn(sourceWallet, destWallet);
         when(transactionRepository.save(any(Transaction.class))).thenReturn(new Transaction(UUID.randomUUID(), sourceWalletId, TransactionType.TRANSFER_OUT, BigDecimal.valueOf(100.00), BigDecimal.valueOf(100.00), "Test transfer", now));
         when(transferOperationRepository.markExecutionInProgress(anyString(), anyString(), any(LocalDateTime.class))).thenReturn(true);
-        when(transferOperationRepository.updateStatus(eq("op-success-1"), eq(TransferOperationStatus.APPLIED), anyString())).thenReturn(true);
+        when(transferOperationRepository.confirmFinancialExecution(eq("op-success-1"), anyString(), anyLong())).thenReturn(true);
 
         TransferResponse response = transferUseCase.execute(request);
 

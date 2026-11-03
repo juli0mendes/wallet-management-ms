@@ -25,6 +25,7 @@ public class TransferOperationDocument {
     private String description;
     private String leaseOwner;
     private LocalDateTime leaseExpiresAt;
+    private long fencingToken;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -34,7 +35,7 @@ public class TransferOperationDocument {
     public TransferOperationDocument(String id, String operationId, String payloadHash,
                                     String status, String description,
                                     LocalDateTime createdAt, LocalDateTime updatedAt) {
-        this(id, operationId, null, null, null, null, payloadHash, status, description, null, null, createdAt, updatedAt);
+        this(id, operationId, null, null, null, null, payloadHash, status, description, null, null, 0L, createdAt, updatedAt);
     }
 
     public TransferOperationDocument(String id, String operationId, String transferId,
@@ -43,7 +44,7 @@ public class TransferOperationDocument {
                                     String status, String description,
                                     LocalDateTime createdAt, LocalDateTime updatedAt) {
         this(id, operationId, transferId, sourceWalletId, destinationWalletId, amount, payloadHash,
-                status, description, null, null, createdAt, updatedAt);
+                status, description, null, null, 0L, createdAt, updatedAt);
     }
 
     public TransferOperationDocument(String id, String operationId, String transferId,
@@ -52,6 +53,16 @@ public class TransferOperationDocument {
                                     String status, String description,
                                     String leaseOwner, LocalDateTime leaseExpiresAt,
                                     LocalDateTime createdAt, LocalDateTime updatedAt) {
+        this(id, operationId, transferId, sourceWalletId, destinationWalletId, amount, payloadHash,
+                status, description, leaseOwner, leaseExpiresAt, 0L, createdAt, updatedAt);
+    }
+
+    public TransferOperationDocument(String id, String operationId, String transferId,
+                                    String sourceWalletId, String destinationWalletId,
+                                    BigDecimal amount, String payloadHash,
+                                    String status, String description,
+                                    String leaseOwner, LocalDateTime leaseExpiresAt,
+                                    long fencingToken, LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
         this.operationId = operationId;
         this.transferId = transferId;
@@ -63,6 +74,7 @@ public class TransferOperationDocument {
         this.description = description;
         this.leaseOwner = leaseOwner;
         this.leaseExpiresAt = leaseExpiresAt;
+        this.fencingToken = fencingToken;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
@@ -99,6 +111,9 @@ public class TransferOperationDocument {
 
     public LocalDateTime getLeaseExpiresAt() { return leaseExpiresAt; }
     public void setLeaseExpiresAt(LocalDateTime leaseExpiresAt) { this.leaseExpiresAt = leaseExpiresAt; }
+
+    public long getFencingToken() { return fencingToken; }
+    public void setFencingToken(long fencingToken) { this.fencingToken = fencingToken; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
