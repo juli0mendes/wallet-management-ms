@@ -21,6 +21,16 @@ public record TransferRequest(
         BigDecimal amount,
 
         @JsonProperty("description")
-        String description
+        String description,
+
+        @JsonProperty("operation_id")
+        String operationId
 ) {
+    public TransferRequest(UUID sourceWalletId, UUID destinationWalletId, BigDecimal amount, String description) {
+        this(sourceWalletId, destinationWalletId, amount, description, null);
+    }
+
+    public String operationId() {
+        return operationId == null || operationId.isBlank() ? UUID.randomUUID().toString() : operationId;
+    }
 }

@@ -1,10 +1,14 @@
 package io.github.juli0mendes.walletmanagement.application.usecase;
 
+import io.github.juli0mendes.walletmanagement.domain.exception.DuplicateTransferOperationException;
 import io.github.juli0mendes.walletmanagement.domain.exception.InsufficientBalanceException;
+import io.github.juli0mendes.walletmanagement.domain.model.TransferOperationStatus;
 import io.github.juli0mendes.walletmanagement.domain.model.Wallet;
 import io.github.juli0mendes.walletmanagement.domain.repository.WalletRepository;
 import io.github.juli0mendes.walletmanagement.dto.TransferRequest;
+import io.github.juli0mendes.walletmanagement.infrastructure.persistence.document.TransferOperationDocument;
 import io.github.juli0mendes.walletmanagement.infrastructure.persistence.repository.TransactionDataRepository;
+import io.github.juli0mendes.walletmanagement.infrastructure.persistence.repository.TransferOperationDataRepository;
 import io.github.juli0mendes.walletmanagement.infrastructure.persistence.repository.WalletDataRepository;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -77,12 +81,16 @@ class TransferUseCaseTransactionIntegrationTest {
     private TransactionDataRepository transactionDataRepository;
 
     @Autowired
+    private TransferOperationDataRepository transferOperationDataRepository;
+
+    @Autowired
     private MongoTransactionManager mongoTransactionManager;
 
     @BeforeEach
     void cleanDatabase() {
         transactionDataRepository.deleteAll();
         walletDataRepository.deleteAll();
+        transferOperationDataRepository.deleteAll();
     }
 
     @Test
@@ -260,5 +268,88 @@ class TransferUseCaseTransactionIntegrationTest {
         assertEquals(new BigDecimal("200.00"), sourceWallet.getBalance());
         assertEquals(new BigDecimal("50.00"), destinationWallet.getBalance());
         assertTrue(transactionDataRepository.findAll().isEmpty());
+    }
+
+    @Test
+    @DisplayName("Should return the same result when the same operation id is retried")
+    void shouldReturnSameResultWhenSameOperationIdIsRetried() {
+        var sourceWalletId = UUID.randomUUID();
+        var destinationWalletId = UUID.randomUUID();
+        var now = LocalDateTime.now();
+        var operationId = "idempotent-success";
+
+        walletRepository.save(new Wallet(sourceWalletId, "John Doe", "john@example.com", new BigDecimal("200.00"), now, now));
+        walletRepository.save(new Wallet(destinationWalletId, "Jane Doe", "jane@example.com", new BigDecimal("50.00"), now, now));
+
+        var firstResponse = transferUseCase.execute(new TransferRequest(
+                sourceWalletId,
+                destinationWalletId,
+                new BigDecimal("25.00"),
+                "idempotent transfer",
+                operationId
+        ));
+
+        var repeatedResponse = transferUseCase.execute(new TransferRequest(
+                sourceWalletId,
+                destinationWalletId,
+                new BigDecimal("25.00"),
+                "idempotent transfer",
+                operationId
+        ));
+
+        assertEquals("COMPLETED", firstResponse.getStatus());
+        assertEquals("COMPLETED", repeatedResponse.getStatus());
+        assertEquals(new BigDecimal("175.00"), walletRepository.findById(sourceWalletId).orElseThrow().getBalance());
+        assertEquals(new BigDecimal("75.00"), walletRepository.findById(destinationWalletId).orElseThrow().getBalance());
+        assertEquals(1, transactionDataRepository.findByWalletId(sourceWalletId.toString()).size());
+        assertEquals(1, transactionDataRepository.findByWalletId(destinationWalletId.toString()).size());
+    }
+
+    @Test
+    @DisplayName("Should reject a reused operation id with a different payload")
+    void shouldRejectReusedOperationIdWithDifferentPayload() {
+        var sourceWalletId = UUID.randomUUID();
+        var destinationWalletId = UUID.randomUUID();
+        var now = LocalDateTime.now();
+        var operationId = "idempotent-conflict";
+
+        walletRepository.save(new Wallet(sourceWalletId, "John Doe", "john@example.com", new BigDecimal("200.00"), now, now));
+        walletRepository.save(new Wallet(destinationWalletId, "Jane Doe", "jane@example.com", new BigDecimal("50.00"), now, now));
+
+        transferUseCase.execute(new TransferRequest(
+                sourceWalletId,
+                destinationWalletId,
+                new BigDecimal("25.00"),
+                "first transfer",
+                operationId
+        ));
+
+        assertThrows(DuplicateTransferOperationException.class, () -> transferUseCase.execute(new TransferRequest(
+                sourceWalletId,
+                destinationWalletId,
+                new BigDecimal("40.00"),
+                "different payload",
+                operationId
+        )));
+    }
+
+    @Test
+    @DisplayName("Should persist the unknown commit status for operation reconciliation")
+    void shouldPersistUnknownCommitResultStatusForOperationReconciliation() {
+        var operationId = "unknown-commit";
+        var now = LocalDateTime.now();
+
+        transferOperationDataRepository.save(new TransferOperationDocument(
+                UUID.randomUUID().toString(),
+                operationId,
+                "payload-hash",
+                TransferOperationStatus.UNKNOWN_COMMIT_RESULT.name(),
+                "reconciliation required",
+                now,
+                now
+        ));
+
+        var saved = transferOperationDataRepository.findByOperationId(operationId).orElseThrow();
+        assertEquals("UNKNOWN_COMMIT_RESULT", saved.getStatus());
     }
 }

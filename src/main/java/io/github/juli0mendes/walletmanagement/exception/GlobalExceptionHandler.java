@@ -1,7 +1,9 @@
 package io.github.juli0mendes.walletmanagement.exception;
 
+import io.github.juli0mendes.walletmanagement.domain.exception.DuplicateTransferOperationException;
 import io.github.juli0mendes.walletmanagement.domain.exception.InsufficientBalanceException;
 import io.github.juli0mendes.walletmanagement.domain.exception.InvalidWalletException;
+import io.github.juli0mendes.walletmanagement.domain.exception.UnknownTransactionCommitResultException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -61,6 +63,32 @@ public class GlobalExceptionHandler {
                 request.getDescription(false).replace("uri=", "")
         );
         return new ResponseEntity<>(errorResponse, HttpStatus.NOT_FOUND);
+    }
+
+    @ExceptionHandler(DuplicateTransferOperationException.class)
+    public ResponseEntity<ErrorResponse> handleDuplicateTransferOperation(
+            DuplicateTransferOperationException ex, WebRequest request) {
+        String path = request.getDescription(false).replace("uri=", "");
+        log.warn("Duplicate transfer operation path={} message={}", path, ex.getMessage());
+        ErrorResponse errorResponse = new ErrorResponse(
+                "DUPLICATE_TRANSFER_OPERATION",
+                ex.getMessage(),
+                path
+        );
+        return new ResponseEntity<>(errorResponse, HttpStatus.CONFLICT);
+    }
+
+    @ExceptionHandler(UnknownTransactionCommitResultException.class)
+    public ResponseEntity<ErrorResponse> handleUnknownCommitResult(
+            UnknownTransactionCommitResultException ex, WebRequest request) {
+        String path = request.getDescription(false).replace("uri=", "");
+        log.warn("Transfer commit result unknown path={} message={}", path, ex.getMessage());
+        ErrorResponse errorResponse = new ErrorResponse(
+                "UNKNOWN_COMMIT_RESULT",
+                ex.getMessage(),
+                path
+        );
+        return new ResponseEntity<>(errorResponse, HttpStatus.ACCEPTED);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

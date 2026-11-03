@@ -11,6 +11,9 @@ public class TransferResponse {
     @JsonProperty("transfer_id")
     private UUID transferId;
 
+    @JsonProperty("operation_id")
+    private String operationId;
+
     @JsonProperty("source_wallet_id")
     private UUID sourceWalletId;
 
@@ -32,9 +35,10 @@ public class TransferResponse {
     public TransferResponse() {
     }
 
-    public TransferResponse(UUID transferId, UUID sourceWalletId, UUID destinationWalletId,
+    public TransferResponse(UUID transferId, String operationId, UUID sourceWalletId, UUID destinationWalletId,
                            BigDecimal amount, String status, String description, LocalDateTime createdAt) {
         this.transferId = transferId;
+        this.operationId = operationId;
         this.sourceWalletId = sourceWalletId;
         this.destinationWalletId = destinationWalletId;
         this.amount = amount;
@@ -43,8 +47,21 @@ public class TransferResponse {
         this.createdAt = createdAt;
     }
 
+    public TransferResponse(UUID transferId, UUID sourceWalletId, UUID destinationWalletId,
+                           BigDecimal amount, String status, String description, LocalDateTime createdAt) {
+        this(transferId, null, sourceWalletId, destinationWalletId, amount, status, description, createdAt);
+    }
+
     public UUID getTransferId() {
         return transferId;
+    }
+
+    public String getOperationId() {
+        return operationId;
+    }
+
+    public void setOperationId(String operationId) {
+        this.operationId = operationId;
     }
 
     public void setTransferId(UUID transferId) {
