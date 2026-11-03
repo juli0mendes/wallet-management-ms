@@ -52,8 +52,19 @@ O sistema MUST diferenciar falhas ocorridas antes do commit de situações em qu
 
 #### Scenario: Resultado de commit incerto
 - **WHEN** a operação gera exceção durante a confirmação da transação e o resultado final não pode ser confirmado imediatamente
-- **THEN** o sistema MUST não afirmar sucesso, MUST registrar a condição de incerteza e MUST tratar a operação como falha operacional até que o estado real seja determinado pelo ambiente MongoDB e pelo driver
+- **THEN** o sistema MUST não afirmar sucesso, MUST registrar a condição de incerteza e MUST tratar a operação como estado indeterminado de commit para reconciliação posterior, sem reprocessamento financeiro indiscriminado
 
-#### Scenario: Idempotência fora de escopo
-- **WHEN** uma tentativa de transferência falha por conflito, falha de confirmação ou incerteza de commit
-- **THEN** o sistema MUST NOT assumir idempotência automática nem reexecutar a operação financeira sem uma decisão explícita de design posterior
+### Requirement: Idempotência e rastreabilidade de transferências
+O sistema MUST conservar um identificador único de operação e SHALL rejeitar ou reutilizar de forma segura as requisições repetidas, evitando duplicidade financeira e mantendo as evidências de processamento.
+
+#### Scenario: Idempotência de transferência
+- **WHEN** a mesma operação de transferência é repetida com o mesmo identificador e o mesmo payload
+- **THEN** o sistema MUST retornar a resposta original ou um resultado equivalente de forma idempotente, sem duplicar saldos ou registros de transação
+
+#### Scenario: Chave de idempotência reutilizada com payload divergente
+- **WHEN** a mesma chave de idempotência é reutilizada para uma transferência com conteúdo diferente
+- **THEN** o sistema MUST rejeitar a operação com erro de conflito de idempotência e MUST preservar a integridade do primeiro processamento
+
+#### Scenario: Reconciliação de operação em estado indeterminado
+- **WHEN** uma transferência entra em `UNKNOWN_COMMIT_RESULT`
+- **THEN** o sistema MUST executar reconciliação explícita para determinar se a operação foi aplicada ou se deve permanecer em estado indeterminado, sem repetir a movimentação financeira indiscriminadamente

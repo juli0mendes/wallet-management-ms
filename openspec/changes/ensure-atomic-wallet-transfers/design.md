@@ -77,9 +77,17 @@ A implementação deve diferenciar claramente:
 - registrar o estado da operação e o tipo de falha para observabilidade e diagnóstico
 - usar mecanismos de retry somente quando o driver e o contexto da operação suportarem tal estratégia sem mascarar efeitos financeiros
 
+**Estado explícito de operação:**
+- `INITIATED`: a operação foi recebida e registrada para rastreio
+- `APPLIED`: a transação foi concluída com sucesso e o efeito financeiro está persistido
+- `REJECTED`: a operação foi recusada por regra de negócio (como saldo insuficiente)
+- `UNKNOWN_COMMIT_RESULT`: a confirmação da transação foi interrompida ou em dúvida, e o sistema não pode afirmar sucesso nem rollback
+- `RECONCILING`: a operação está sendo verificada para determinar o resultado real, sem permitir reexecução indiscriminada
+
 **Escopo explícito:**
 - a idempotência completa da operação de transferência está fora do escopo desta mudança
 - a correção inicial visa consistência transacional, não reaproveitamento automático de tentativas duplicadas ou compensação de operações previamente confirmadas
+- qualquer evolução posterior deve tratar `UNKNOWN_COMMIT_RESULT` com reconciliação explícita e prevenção de duplicidade financeira
 
 ### 6. Infraestrutura e compatibilidade do ambiente MongoDB
 A operação de transferência atômica exigirá que o MongoDB esteja configurado como replica set ou cluster compatível com transações multi-documento. Para desenvolvimento local, um replica set de nó único é suficiente, desde que a configuração do ambiente seja compatível com transações do MongoDB.
@@ -103,9 +111,24 @@ Os testes desta mudança MUST prever a execução em MongoDB real, em configura�
 - falha intermediária durante a execução da transação
 - rollback de transação em caso de erro
 - concorrência entre transferências sobre a mesma carteira ou entre carteiras relacionadas
+- resultado incerto de commit, sem afirmar sucesso ou falha definitiva
+- repetição idempotente da mesma operação para prevenir duplicidade financeira
+- reconciliação de operações em `UNKNOWN_COMMIT_RESULT` sem reprocessar a transferência inteira
 
 **Alternativa de integração:**
 - `Testcontainers` pode ser utilizado para subir uma instância real do MongoDB em ambiente de teste, preservando a validade do comportamento transacional sem depender de uma instalação local manual.
+
+### 8. Idempotência, rastreabilidade e reconciliação de operações
+A operação de transferência deve ser rastreada por um identificador único de operação (por exemplo, `operationId` ou `idempotencyKey`) persistido junto com o estado da operação e com o payload relevante. Esse mecanismo reduz a chance de duplicidade de efeitos financeiros e permite a diferenciação entre:
+- mesmo request repetido: retorna o resultado original
+- mesmo identificador com payload diferente: rejeição explícita por chave reutilizada indevidamente
+- falha durante confirmação: estado `UNKNOWN_COMMIT_RESULT`, sem reprocessar a transferência inteira
+
+**Decisão de design:**
+- o identificador da operação deve ser persistido na mesma transação da operação financeira, de modo que a deduplicação seja consistente com o estado real
+- as operações repetidas MUST ser tratadas sem reexecutar movimentações financeiras
+- a reconciliação deve usar o estado persistido e os registros financeiros observáveis para decider se a operação já foi aplicada
+- retries automáticos da operação inteira devem ser proibidos sem validação explícita do estado real e sem reenvio indevido do mesmo efeito financeiro
 
 ## Riscos / Trade-offs
 

@@ -10,6 +10,8 @@ As transferências atualmente atualizam tanto as carteiras quanto os registros d
 - Assegurar que atualizações das carteiras de origem e destino e registros de transações sejam confirmados juntos ou não ocorram.
 - Preservar o contrato atual da API enquanto reforça as garantias de consistência financeira.
 - Adicionar validação explícita e tratamento de erros para cenários de falha na confirmação da transferência.
+- Introduzir rastreabilidade de operação via identificador único para prevenir duplicidade financeira e permitir idempotência segura de transferências repetidas.
+- Definir estados explícitos para rollback confirmado, commit incerto e reconciliação de operações sem reprocessamento financeiro indiscriminado.
 
 ## Capabilities
 
