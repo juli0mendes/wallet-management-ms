@@ -28,3 +28,10 @@
 - [x] 4.3 Cobrir repetição idempotente da mesma operação e rejeição de chave reutilizada com payload divergente.
 - [x] 4.4 Considerar a utilização de `Testcontainers` para validar a execução real do MongoDB em ambiente de teste, sem depender exclusivamente de mocks ou de configuração artificial.
 - [x] 4.5 Executar o conjunto de testes focado em transferências e persistência MongoDB para confirmar que a atomicidade, o rollback, a idempotência, a reconciliação e a política de concorrência atendem ao contrato da mudança.
+
+## 5. Correções críticas de reconciliação e consistência financeira
+
+- [x] 5.1 Persistir `transferId` e `operationId` em cada lançamento financeiro para permitir correlação inequívoca entre operação e evidência contábil.
+- [x] 5.2 Classificar `UNKNOWN_COMMIT_RESULT` apenas quando o MongoDB sinaliza explicitamente o rótulo `UnknownTransactionCommitResult`.
+- [x] 5.3 Implementar lease de reconciliação persistido no MongoDB para recuperar operações em `RECONCILING` após falha da instância.
+- [x] 5.4 Validar o comportamento com testes de regressão que reproduzem transferências com atributos financeiros idênticos e leases expirados.

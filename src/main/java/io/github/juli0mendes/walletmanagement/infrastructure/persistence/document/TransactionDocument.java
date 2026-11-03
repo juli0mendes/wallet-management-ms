@@ -16,6 +16,12 @@ public class TransactionDocument {
     @Indexed
     private String walletId;
 
+    @Indexed
+    private String transferId;
+
+    @Indexed
+    private String operationId;
+
     private String type;
     private BigDecimal amount;
     private BigDecimal balanceAfter;
@@ -27,8 +33,16 @@ public class TransactionDocument {
 
     public TransactionDocument(String id, String walletId, String type, BigDecimal amount,
                                BigDecimal balanceAfter, String description, LocalDateTime createdAt) {
+        this(id, walletId, null, null, type, amount, balanceAfter, description, createdAt);
+    }
+
+    public TransactionDocument(String id, String walletId, String transferId, String operationId,
+                               String type, BigDecimal amount, BigDecimal balanceAfter,
+                               String description, LocalDateTime createdAt) {
         this.id = id;
         this.walletId = walletId;
+        this.transferId = transferId;
+        this.operationId = operationId;
         this.type = type;
         this.amount = amount;
         this.balanceAfter = balanceAfter;
@@ -41,6 +55,12 @@ public class TransactionDocument {
 
     public String getWalletId() { return walletId; }
     public void setWalletId(String walletId) { this.walletId = walletId; }
+
+    public String getTransferId() { return transferId; }
+    public void setTransferId(String transferId) { this.transferId = transferId; }
+
+    public String getOperationId() { return operationId; }
+    public void setOperationId(String operationId) { this.operationId = operationId; }
 
     public String getType() { return type; }
     public void setType(String type) { this.type = type; }

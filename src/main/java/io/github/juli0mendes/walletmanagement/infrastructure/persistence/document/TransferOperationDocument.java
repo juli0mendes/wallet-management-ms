@@ -23,6 +23,8 @@ public class TransferOperationDocument {
     private String payloadHash;
     private String status;
     private String description;
+    private String leaseOwner;
+    private LocalDateTime leaseExpiresAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -32,13 +34,23 @@ public class TransferOperationDocument {
     public TransferOperationDocument(String id, String operationId, String payloadHash,
                                     String status, String description,
                                     LocalDateTime createdAt, LocalDateTime updatedAt) {
-        this(id, operationId, null, null, null, null, payloadHash, status, description, createdAt, updatedAt);
+        this(id, operationId, null, null, null, null, payloadHash, status, description, null, null, createdAt, updatedAt);
     }
 
     public TransferOperationDocument(String id, String operationId, String transferId,
                                     String sourceWalletId, String destinationWalletId,
                                     BigDecimal amount, String payloadHash,
                                     String status, String description,
+                                    LocalDateTime createdAt, LocalDateTime updatedAt) {
+        this(id, operationId, transferId, sourceWalletId, destinationWalletId, amount, payloadHash,
+                status, description, null, null, createdAt, updatedAt);
+    }
+
+    public TransferOperationDocument(String id, String operationId, String transferId,
+                                    String sourceWalletId, String destinationWalletId,
+                                    BigDecimal amount, String payloadHash,
+                                    String status, String description,
+                                    String leaseOwner, LocalDateTime leaseExpiresAt,
                                     LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
         this.operationId = operationId;
@@ -49,6 +61,8 @@ public class TransferOperationDocument {
         this.payloadHash = payloadHash;
         this.status = status;
         this.description = description;
+        this.leaseOwner = leaseOwner;
+        this.leaseExpiresAt = leaseExpiresAt;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
@@ -79,6 +93,12 @@ public class TransferOperationDocument {
 
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
+
+    public String getLeaseOwner() { return leaseOwner; }
+    public void setLeaseOwner(String leaseOwner) { this.leaseOwner = leaseOwner; }
+
+    public LocalDateTime getLeaseExpiresAt() { return leaseExpiresAt; }
+    public void setLeaseExpiresAt(LocalDateTime leaseExpiresAt) { this.leaseExpiresAt = leaseExpiresAt; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

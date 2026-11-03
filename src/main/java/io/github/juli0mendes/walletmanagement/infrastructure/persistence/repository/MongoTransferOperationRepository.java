@@ -49,6 +49,23 @@ public class MongoTransferOperationRepository implements TransferOperationReposi
     }
 
     @Override
+    public List<TransferOperation> findPendingReconciliation(int limit, LocalDateTime asOf) {
+        Criteria criteria = new Criteria().orOperator(
+                Criteria.where("status").is(TransferOperationStatus.UNKNOWN_COMMIT_RESULT.name()),
+                Criteria.where("status").is(TransferOperationStatus.RECONCILING.name())
+                        .andOperator(Criteria.where("leaseExpiresAt").lt(asOf))
+        );
+
+        Query query = new Query(criteria)
+                .with(Sort.by(Sort.Direction.ASC, "updatedAt"))
+                .limit(limit);
+        return mongoTemplate.find(query, io.github.juli0mendes.walletmanagement.infrastructure.persistence.document.TransferOperationDocument.class)
+                .stream()
+                .map(transferOperationMapper::toDomain)
+                .toList();
+    }
+
+    @Override
     public TransferOperation save(TransferOperation transferOperation) {
         try {
             return transferOperationMapper.toDomain(
@@ -65,6 +82,8 @@ public class MongoTransferOperationRepository implements TransferOperationReposi
                 .ifPresent(document -> {
                     document.setStatus(status.name());
                     document.setUpdatedAt(LocalDateTime.now());
+                    document.setLeaseOwner(null);
+                    document.setLeaseExpiresAt(null);
                     transferOperationDataRepository.save(document);
                 });
     }
@@ -75,6 +94,54 @@ public class MongoTransferOperationRepository implements TransferOperationReposi
                 .and("status").is(TransferOperationStatus.UNKNOWN_COMMIT_RESULT.name()));
         Update update = new Update()
                 .set("status", TransferOperationStatus.RECONCILING.name())
+                .set("updatedAt", LocalDateTime.now())
+                .set("leaseOwner", "system")
+                .set("leaseExpiresAt", LocalDateTime.now().plusMinutes(5));
+
+        return mongoTemplate.updateFirst(query, update,
+                io.github.juli0mendes.walletmanagement.infrastructure.persistence.document.TransferOperationDocument.class)
+                .getModifiedCount() > 0;
+    }
+
+    @Override
+    public boolean acquireReconciliationLease(String operationId, String leaseOwner, LocalDateTime leaseExpiresAt) {
+        if (leaseOwner == null || leaseOwner.isBlank() || leaseExpiresAt == null) {
+            return false;
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        Criteria criteria = Criteria.where("operationId").is(operationId)
+                .and("status").in(TransferOperationStatus.UNKNOWN_COMMIT_RESULT.name(), TransferOperationStatus.RECONCILING.name())
+                .andOperator(new Criteria().orOperator(
+                        Criteria.where("leaseOwner").exists(false),
+                        Criteria.where("leaseOwner").is(leaseOwner),
+                        Criteria.where("leaseExpiresAt").lt(now)
+                ));
+
+        Update update = new Update()
+                .set("status", TransferOperationStatus.RECONCILING.name())
+                .set("leaseOwner", leaseOwner)
+                .set("leaseExpiresAt", leaseExpiresAt)
+                .set("updatedAt", now);
+
+        return mongoTemplate.updateFirst(new Query(criteria), update,
+                io.github.juli0mendes.walletmanagement.infrastructure.persistence.document.TransferOperationDocument.class)
+                .getModifiedCount() > 0;
+    }
+
+    @Override
+    public boolean finalizeReconciliation(String operationId, TransferOperationStatus status, String leaseOwner) {
+        if (status == null || leaseOwner == null || leaseOwner.isBlank()) {
+            return false;
+        }
+
+        Query query = new Query(Criteria.where("operationId").is(operationId)
+                .and("status").is(TransferOperationStatus.RECONCILING.name())
+                .and("leaseOwner").is(leaseOwner));
+        Update update = new Update()
+                .set("status", status.name())
+                .set("leaseOwner", null)
+                .set("leaseExpiresAt", null)
                 .set("updatedAt", LocalDateTime.now());
 
         return mongoTemplate.updateFirst(query, update,

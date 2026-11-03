@@ -21,6 +21,8 @@ public class TransferOperationMapper {
                 transferOperation.getPayloadHash(),
                 transferOperation.getStatus().name(),
                 transferOperation.getDescription(),
+                transferOperation.getLeaseOwner(),
+                transferOperation.getLeaseExpiresAt(),
                 transferOperation.getCreatedAt(),
                 transferOperation.getUpdatedAt()
         );
@@ -37,6 +39,8 @@ public class TransferOperationMapper {
                 document.getPayloadHash(),
                 TransferOperationStatus.valueOf(document.getStatus()),
                 document.getDescription(),
+                document.getLeaseOwner(),
+                document.getLeaseExpiresAt(),
                 document.getCreatedAt(),
                 document.getUpdatedAt()
         );

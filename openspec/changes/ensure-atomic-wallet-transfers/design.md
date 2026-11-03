@@ -76,6 +76,7 @@ A implementação deve diferenciar claramente:
 - não tratar qualquer erro de driver como sucesso
 - registrar o estado da operação e o tipo de falha para observabilidade e diagnóstico
 - usar mecanismos de retry somente quando o driver e o contexto da operação suportarem tal estratégia sem mascarar efeitos financeiros
+- somente marcar `UNKNOWN_COMMIT_RESULT` quando a exceção do MongoDB possuir o rótulo `UnknownTransactionCommitResult`; erros genéricos antes do commit continuam sendo tratados como falha transacional normal
 
 **Estado explícito de operação:**
 - `INITIATED`: a operação foi recebida e registrada para rastreio
@@ -83,6 +84,17 @@ A implementação deve diferenciar claramente:
 - `REJECTED`: a operação foi recusada por regra de negócio (como saldo insuficiente)
 - `UNKNOWN_COMMIT_RESULT`: a confirmação da transação foi interrompida ou em dúvida, e o sistema não pode afirmar sucesso nem rollback
 - `RECONCILING`: a operação está sendo verificada para determinar o resultado real, sem permitir reexecução indiscriminada
+
+**Correlação financeira inequívoca:**
+- cada lançamento financeiro persiste `transferId` e `operationId` no mesmo MongoDB transaction que realiza débito, crédito e histórico
+- a reconciliação consulta apenas os registros pertencentes ao `transferId` da operação em análise
+- descrição e valor deixam de ser usados como identificadores primários de confirmação financeira
+- a operação em `UNKNOWN_COMMIT_RESULT` só é marcada como `APPLIED` quando existem os dois lançamentos esperados para a mesma transferência
+
+**Lease de reconciliação:**
+- o processo de reconciliação usa lease persistido no MongoDB com expiração e identificador de proprietário
+- uma operação em `RECONCILING` pode ser retomada após expiração do lease
+- workers antigos não podem finalizar uma operação cujo lease já foi reassumido por outra instância
 
 **Escopo explícito:**
 - a idempotência completa da operação de transferência está fora do escopo desta mudança

@@ -17,7 +17,6 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.aop.support.AopUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.mongodb.MongoTransactionManager;
@@ -29,6 +28,8 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
+import com.mongodb.MongoException;
+import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -106,8 +107,6 @@ class TransferUseCaseTransactionIntegrationTest {
     @Test
     @DisplayName("Should persist a successful transfer across both wallets and both transaction records")
     void shouldPersistSuccessfulTransferAcrossWalletsAndTransactions() {
-        assertTrue(AopUtils.isAopProxy(transferUseCase));
-
         var now = LocalDateTime.now();
         var sourceWalletId = UUID.randomUUID();
         var destinationWalletId = UUID.randomUUID();
@@ -371,6 +370,8 @@ class TransferUseCaseTransactionIntegrationTest {
         transactionDataRepository.save(new io.github.juli0mendes.walletmanagement.infrastructure.persistence.document.TransactionDocument(
                 UUID.randomUUID().toString(),
                 sourceWalletId.toString(),
+                transferId.toString(),
+                operationId,
                 "TRANSFER_OUT",
                 amount,
                 new BigDecimal("160.00"),
@@ -380,6 +381,8 @@ class TransferUseCaseTransactionIntegrationTest {
         transactionDataRepository.save(new io.github.juli0mendes.walletmanagement.infrastructure.persistence.document.TransactionDocument(
                 UUID.randomUUID().toString(),
                 destinationWalletId.toString(),
+                transferId.toString(),
+                operationId,
                 "TRANSFER_IN",
                 amount,
                 new BigDecimal("140.00"),
@@ -419,6 +422,117 @@ class TransferUseCaseTransactionIntegrationTest {
         assertFalse(reconciliationService.reconcileOperation(operation));
         assertEquals(TransferOperationStatus.UNKNOWN_COMMIT_RESULT,
                 transferOperationRepository.findByOperationId(operationId).orElseThrow().getStatus());
+    }
+
+    @Test
+    @DisplayName("Should not reconcile a transfer using financial evidence from another transfer")
+    void shouldNotReconcileATransferUsingEvidenceFromAnotherTransfer() {
+        var now = LocalDateTime.now();
+        var sourceWalletId = UUID.randomUUID();
+        var destinationWalletId = UUID.randomUUID();
+        var amount = new BigDecimal("100.00");
+        var description = "shared transfer description";
+
+        var appliedTransferId = UUID.randomUUID();
+        var unknownTransferId = UUID.randomUUID();
+
+        transferOperationDataRepository.save(new TransferOperationDocument(
+                UUID.randomUUID().toString(),
+                "operation-applied",
+                appliedTransferId.toString(),
+                sourceWalletId.toString(),
+                destinationWalletId.toString(),
+                amount,
+                "payload-a",
+                TransferOperationStatus.APPLIED.name(),
+                description,
+                now,
+                now
+        ));
+
+        transferOperationDataRepository.save(new TransferOperationDocument(
+                UUID.randomUUID().toString(),
+                "operation-unknown",
+                unknownTransferId.toString(),
+                sourceWalletId.toString(),
+                destinationWalletId.toString(),
+                amount,
+                "payload-b",
+                TransferOperationStatus.UNKNOWN_COMMIT_RESULT.name(),
+                description,
+                now,
+                now
+        ));
+
+        transactionDataRepository.save(new io.github.juli0mendes.walletmanagement.infrastructure.persistence.document.TransactionDocument(
+                UUID.randomUUID().toString(),
+                sourceWalletId.toString(),
+                appliedTransferId.toString(),
+                "operation-applied",
+                "TRANSFER_OUT",
+                amount,
+                new BigDecimal("900.00"),
+                description,
+                now
+        ));
+        transactionDataRepository.save(new io.github.juli0mendes.walletmanagement.infrastructure.persistence.document.TransactionDocument(
+                UUID.randomUUID().toString(),
+                destinationWalletId.toString(),
+                appliedTransferId.toString(),
+                "operation-applied",
+                "TRANSFER_IN",
+                amount,
+                new BigDecimal("1100.00"),
+                description,
+                now
+        ));
+
+        var unknownOperation = transferOperationRepository.findByOperationId("operation-unknown").orElseThrow();
+        assertFalse(reconciliationService.reconcileOperation(unknownOperation));
+        assertEquals(TransferOperationStatus.UNKNOWN_COMMIT_RESULT,
+                transferOperationRepository.findByOperationId("operation-unknown").orElseThrow().getStatus());
+    }
+
+    @Test
+    @DisplayName("Should recover stale reconciliation lease and prevent stale workers from finalizing")
+    void shouldRecoverExpiredReconciliationLease() {
+        var operationId = "reconcile-expired-lease";
+        var now = LocalDateTime.now();
+        var transferId = UUID.randomUUID();
+
+        transferOperationRepository.save(new TransferOperation(
+                UUID.randomUUID(),
+                operationId,
+                transferId,
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                new BigDecimal("15.00"),
+                "payload-expired",
+                TransferOperationStatus.UNKNOWN_COMMIT_RESULT,
+                "lease recovery",
+                now,
+                now
+        ));
+
+        assertTrue(transferOperationRepository.acquireReconciliationLease(operationId, "owner-a", now.minusMinutes(5)));
+        assertTrue(transferOperationRepository.acquireReconciliationLease(operationId, "owner-b", now.plusMinutes(5)));
+        assertFalse(transferOperationRepository.finalizeReconciliation(operationId, TransferOperationStatus.APPLIED, "owner-a"));
+        assertEquals(TransferOperationStatus.RECONCILING,
+                transferOperationRepository.findByOperationId(operationId).orElseThrow().getStatus());
+    }
+
+    @Test
+    @DisplayName("Should classify only Mongo unknown commit label as indeterminate")
+    void shouldClassifyOnlyMongoUnknownCommitLabelAsIndeterminate() throws Exception {
+        var method = TransferUseCase.class.getDeclaredMethod("isUnknownCommitResult", Throwable.class);
+        method.setAccessible(true);
+
+        var unknownCommit = new MongoException("commit uncertain");
+        unknownCommit.addLabel("UnknownTransactionCommitResult");
+        assertTrue((Boolean) method.invoke(transferUseCase, unknownCommit));
+
+        var ordinaryMongoFailure = new MongoException("commit failed before confirmation");
+        assertFalse((Boolean) method.invoke(transferUseCase, ordinaryMongoFailure));
     }
 
     @Test

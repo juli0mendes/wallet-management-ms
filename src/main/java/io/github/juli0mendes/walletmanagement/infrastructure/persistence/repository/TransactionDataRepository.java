@@ -8,5 +8,6 @@ import java.util.List;
 public interface TransactionDataRepository extends MongoRepository<TransactionDocument, String> {
     List<TransactionDocument> findByWalletId(String walletId);
     List<TransactionDocument> findByWalletIdAndCreatedAtLessThanEqual(String walletId, LocalDateTime at);
+    List<TransactionDocument> findByTransferId(String transferId);
 }
 

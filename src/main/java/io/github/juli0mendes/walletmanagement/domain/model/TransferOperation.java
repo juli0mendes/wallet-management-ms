@@ -15,19 +15,31 @@ public class TransferOperation {
     private final String payloadHash;
     private final TransferOperationStatus status;
     private final String description;
+    private final String leaseOwner;
+    private final LocalDateTime leaseExpiresAt;
     private final LocalDateTime createdAt;
     private final LocalDateTime updatedAt;
 
     public TransferOperation(UUID id, String operationId, String payloadHash,
                              TransferOperationStatus status, String description,
                              LocalDateTime createdAt, LocalDateTime updatedAt) {
-        this(id, operationId, UUID.randomUUID(), null, null, null, payloadHash, status, description, createdAt, updatedAt);
+        this(id, operationId, UUID.randomUUID(), null, null, null, payloadHash, status, description, null, null, createdAt, updatedAt);
     }
 
     public TransferOperation(UUID id, String operationId, UUID transferId,
                             UUID sourceWalletId, UUID destinationWalletId,
                             BigDecimal amount, String payloadHash,
                             TransferOperationStatus status, String description,
+                            LocalDateTime createdAt, LocalDateTime updatedAt) {
+        this(id, operationId, transferId, sourceWalletId, destinationWalletId, amount, payloadHash,
+                status, description, null, null, createdAt, updatedAt);
+    }
+
+    public TransferOperation(UUID id, String operationId, UUID transferId,
+                            UUID sourceWalletId, UUID destinationWalletId,
+                            BigDecimal amount, String payloadHash,
+                            TransferOperationStatus status, String description,
+                            String leaseOwner, LocalDateTime leaseExpiresAt,
                             LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = Objects.requireNonNull(id, "Transfer operation id cannot be null");
         this.operationId = Objects.requireNonNull(operationId, "Operation id cannot be null");
@@ -38,6 +50,8 @@ public class TransferOperation {
         this.payloadHash = Objects.requireNonNull(payloadHash, "Payload hash cannot be null");
         this.status = Objects.requireNonNull(status, "Status cannot be null");
         this.description = description;
+        this.leaseOwner = leaseOwner;
+        this.leaseExpiresAt = leaseExpiresAt;
         this.createdAt = Objects.requireNonNull(createdAt, "Created at cannot be null");
         this.updatedAt = Objects.requireNonNull(updatedAt, "Updated at cannot be null");
     }
@@ -76,6 +90,14 @@ public class TransferOperation {
 
     public String getDescription() {
         return description;
+    }
+
+    public String getLeaseOwner() {
+        return leaseOwner;
+    }
+
+    public LocalDateTime getLeaseExpiresAt() {
+        return leaseExpiresAt;
     }
 
     public LocalDateTime getCreatedAt() {

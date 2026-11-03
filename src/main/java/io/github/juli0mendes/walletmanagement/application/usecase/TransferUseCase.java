@@ -17,11 +17,6 @@ import io.github.juli0mendes.walletmanagement.exception.WalletNotFoundException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.mongodb.MongoTransactionManager;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.CannotCreateTransactionException;
-import org.springframework.transaction.TransactionSystemException;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
@@ -57,7 +52,6 @@ public class TransferUseCase {
         this.transactionTemplate = mongoTransactionManager == null ? null : new TransactionTemplate(mongoTransactionManager);
     }
 
-    @Transactional(rollbackFor = Exception.class)
     public TransferResponse execute(TransferRequest request) {
         String operationId = request.operationId() == null || request.operationId().isBlank()
                 ? UUID.randomUUID().toString()
@@ -77,29 +71,7 @@ public class TransferUseCase {
 
         UUID transferId = UUID.randomUUID();
         LocalDateTime now = LocalDateTime.now();
-
-        try {
-            if (transactionTemplate == null) {
-                return executeTransactionalLogic(request, operationId, payloadHash, transferId, now);
-            }
-            return transactionTemplate.execute(status -> executeTransactionalLogic(request, operationId, payloadHash, transferId, now));
-        } catch (RuntimeException ex) {
-            if (isCommitIndeterminate(ex)) {
-                transferOperationRepository.updateStatus(operationId, TransferOperationStatus.UNKNOWN_COMMIT_RESULT);
-                throw new UnknownTransactionCommitResultException(
-                        "Transfer commit result is unknown for operation id: " + operationId
-                );
-            }
-            throw ex;
-        }
-    }
-
-    private TransferResponse executeTransactionalLogic(TransferRequest request,
-                                                     String operationId,
-                                                     String payloadHash,
-                                                     UUID transferId,
-                                                     LocalDateTime now) {
-        TransferOperation transferOperation = new TransferOperation(
+        TransferOperation operation = new TransferOperation(
                 UUID.randomUUID(),
                 operationId,
                 transferId,
@@ -114,7 +86,7 @@ public class TransferUseCase {
         );
 
         try {
-            transferOperationRepository.save(transferOperation);
+            transferOperationRepository.save(operation);
         } catch (DataIntegrityViolationException ex) {
             Optional<TransferOperation> concurrent = transferOperationRepository.findByOperationId(operationId);
             if (concurrent.isPresent() && concurrent.get().getPayloadHash().equals(payloadHash)) {
@@ -123,17 +95,27 @@ public class TransferUseCase {
             throw ex;
         }
 
-        if (TransactionSynchronizationManager.isSynchronizationActive()) {
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                @Override
-                public void afterCompletion(int status) {
-                    if (status == STATUS_UNKNOWN) {
-                        transferOperationRepository.updateStatus(operationId, TransferOperationStatus.UNKNOWN_COMMIT_RESULT);
-                    }
-                }
-            });
+        try {
+            if (transactionTemplate == null) {
+                return executeTransactionalLogic(request, operationId, payloadHash, transferId, now);
+            }
+            return transactionTemplate.execute(status -> executeTransactionalLogic(request, operationId, payloadHash, transferId, now));
+        } catch (RuntimeException ex) {
+            if (isUnknownCommitResult(ex)) {
+                transferOperationRepository.updateStatus(operationId, TransferOperationStatus.UNKNOWN_COMMIT_RESULT);
+                throw new UnknownTransactionCommitResultException(
+                        "Transfer commit result is unknown for operation id: " + operationId
+                );
+            }
+            throw ex;
         }
+    }
 
+    private TransferResponse executeTransactionalLogic(TransferRequest request,
+                                                     String operationId,
+                                                     String payloadHash,
+                                                     UUID transferId,
+                                                     LocalDateTime now) {
         UUID sourceWalletId = request.sourceWalletId();
         UUID destinationWalletId = request.destinationWalletId();
         BigDecimal amount = request.amount();
@@ -157,6 +139,8 @@ public class TransferUseCase {
                 amount,
                 sourceWallet.getBalance(),
                 request.description(),
+                transferId,
+                operationId,
                 now
         );
         transactionRepository.save(sourceTransaction);
@@ -168,6 +152,8 @@ public class TransferUseCase {
                 amount,
                 destinationWallet.getBalance(),
                 request.description(),
+                transferId,
+                operationId,
                 now
         );
         transactionRepository.save(destTransaction);
@@ -206,12 +192,15 @@ public class TransferUseCase {
         );
     }
 
-    private boolean isCommitIndeterminate(RuntimeException ex) {
-        return ex instanceof UnknownTransactionCommitResultException
-                || ex instanceof TransactionSystemException
-                || ex instanceof CannotCreateTransactionException
-                || ex instanceof MongoException
-                || ex instanceof RuntimeException && ex.getCause() != null && (ex.getCause() instanceof MongoException || ex.getCause() instanceof TransactionSystemException);
+    private boolean isUnknownCommitResult(Throwable ex) {
+        Throwable current = ex;
+        while (current != null) {
+            if (current instanceof MongoException mongoException && mongoException.hasErrorLabel("UnknownTransactionCommitResult")) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
     }
 
     private String buildPayloadHash(TransferRequest request) {

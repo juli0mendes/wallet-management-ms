@@ -11,9 +11,18 @@ public class Transaction {
     private final BigDecimal amount;
     private final BigDecimal balanceAfter;
     private final String description;
+    private final UUID transferId;
+    private final String operationId;
     private final LocalDateTime createdAt;
 
-    public Transaction(UUID id, UUID walletId, TransactionType type, BigDecimal amount, BigDecimal balanceAfter, String description, LocalDateTime createdAt) {
+    public Transaction(UUID id, UUID walletId, TransactionType type, BigDecimal amount,
+                      BigDecimal balanceAfter, String description, LocalDateTime createdAt) {
+        this(id, walletId, type, amount, balanceAfter, description, null, null, createdAt);
+    }
+
+    public Transaction(UUID id, UUID walletId, TransactionType type, BigDecimal amount,
+                      BigDecimal balanceAfter, String description, UUID transferId,
+                      String operationId, LocalDateTime createdAt) {
         if (id == null) {
             throw new IllegalArgumentException("Transaction id cannot be null");
         }
@@ -39,6 +48,8 @@ public class Transaction {
         this.amount = amount;
         this.balanceAfter = balanceAfter;
         this.description = description;
+        this.transferId = transferId;
+        this.operationId = operationId;
         this.createdAt = createdAt;
     }
 
@@ -48,5 +59,7 @@ public class Transaction {
     public BigDecimal getAmount() { return amount; }
     public BigDecimal getBalanceAfter() { return balanceAfter; }
     public String getDescription() { return description; }
+    public UUID getTransferId() { return transferId; }
+    public String getOperationId() { return operationId; }
     public LocalDateTime getCreatedAt() { return createdAt; }
 }

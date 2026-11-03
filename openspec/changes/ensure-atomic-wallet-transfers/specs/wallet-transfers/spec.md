@@ -53,6 +53,14 @@ O sistema MUST diferenciar falhas ocorridas antes do commit de situações em qu
 #### Scenario: Resultado de commit incerto
 - **WHEN** a operação gera exceção durante a confirmação da transação e o resultado final não pode ser confirmado imediatamente
 - **THEN** o sistema MUST não afirmar sucesso, MUST registrar a condição de incerteza e MUST tratar a operação como estado indeterminado de commit para reconciliação posterior, sem reprocessamento financeiro indiscriminado
+- **AND** MUST considerar `UnknownTransactionCommitResult` apenas quando o MongoDB reporta esse rótulo, sem classificar todas as exceções genéricas como incerteza de confirmação
+
+### Requirement: Correlação inequívoca de lançamentos financeiross
+A reconciliação MUST considerar apenas lançamentos associados ao mesmo `transferId` e `operationId` da operação sendo analisada, e SHALL rejeitar qualquer evidência que pertença a outra transferência, mesmo que tenha o mesmo valor, a mesma origem, o mesmo destino ou a mesma descrição.
+
+#### Scenario: Transferência duplicada por similaridade de atributos
+- **WHEN** duas operações financeiras possuem a mesma carteira de origem, destino, valor e descrição
+- **THEN** o sistema MUST garantir que a reconciliação use apenas os lançamentos que compartilham o mesmo `transferId` e `operationId` da operação em análise, sem cruzar evidências entre transferências diferentes
 
 ### Requirement: Idempotência e rastreabilidade de transferências
 O sistema MUST conservar um identificador único de operação e SHALL rejeitar ou reutilizar de forma segura as requisições repetidas, evitando duplicidade financeira e mantendo as evidências de processamento.

@@ -45,6 +45,17 @@ public class MongoTransactionRepository implements TransactionRepository {
     }
 
     @Override
+    public List<Transaction> findByTransferId(UUID transferId) {
+        if (transferId == null) {
+            throw new InvalidWalletException("Transfer id cannot be null");
+        }
+        return transactionDataRepository.findByTransferId(transferId.toString())
+                .stream()
+                .map(transactionMapper::toDomain)
+                .toList();
+    }
+
+    @Override
     public Transaction save(Transaction transaction) {
         if (transaction == null) {
             throw new InvalidWalletException("Transaction cannot be null");

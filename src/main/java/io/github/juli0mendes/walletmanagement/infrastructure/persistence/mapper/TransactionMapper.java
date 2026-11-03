@@ -17,6 +17,8 @@ public class TransactionMapper {
         return new TransactionDocument(
                 transaction.getId().toString(),
                 transaction.getWalletId().toString(),
+                transaction.getTransferId() != null ? transaction.getTransferId().toString() : null,
+                transaction.getOperationId(),
                 transaction.getType().name(),
                 transaction.getAmount(),
                 transaction.getBalanceAfter(),
@@ -35,6 +37,8 @@ public class TransactionMapper {
                 document.getAmount(),
                 document.getBalanceAfter(),
                 document.getDescription(),
+                document.getTransferId() != null ? UUID.fromString(document.getTransferId()) : null,
+                document.getOperationId(),
                 document.getCreatedAt()
         );
     }
