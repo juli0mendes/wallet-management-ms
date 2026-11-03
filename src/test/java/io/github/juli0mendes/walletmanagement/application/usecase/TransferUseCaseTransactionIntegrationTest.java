@@ -472,6 +472,46 @@ class TransferUseCaseTransactionIntegrationTest {
     }
 
     @Test
+    @DisplayName("Should reject a stale execution owner even after a newer ownership token is issued")
+    void shouldRejectStaleExecutionOwnerAfterOwnershipRotation() {
+        var sourceWalletId = UUID.randomUUID();
+        var destinationWalletId = UUID.randomUUID();
+        var operationId = "execution-owner-fencing";
+        var transferId = UUID.randomUUID();
+        var now = LocalDateTime.now();
+
+        transferOperationRepository.save(new TransferOperation(
+                UUID.randomUUID(),
+                operationId,
+                transferId,
+                sourceWalletId,
+                destinationWalletId,
+                new BigDecimal("62.00"),
+                "payload-fencing",
+                TransferOperationStatus.INITIATED,
+                "fencing ownership test",
+                "transfer-execution:" + operationId + ":1",
+                now.minusMinutes(10),
+                now.minusMinutes(30),
+                now.minusMinutes(30)
+        ));
+
+        assertFalse(transferOperationRepository.updateStatus(operationId, TransferOperationStatus.APPLIED,
+                "transfer-execution:" + operationId + ":1"));
+
+        assertTrue(transferOperationRepository.markExecutionInProgress(operationId,
+                "transfer-execution:" + operationId + ":2",
+                now.plusMinutes(10)));
+
+        assertFalse(transferOperationRepository.updateStatus(operationId, TransferOperationStatus.APPLIED,
+                "transfer-execution:" + operationId + ":1"));
+        assertTrue(transferOperationRepository.updateStatus(operationId, TransferOperationStatus.APPLIED,
+                "transfer-execution:" + operationId + ":2"));
+        assertEquals(TransferOperationStatus.APPLIED,
+                transferOperationRepository.findByOperationId(operationId).orElseThrow().getStatus());
+    }
+
+    @Test
     @DisplayName("Should reject invalid reconciliation transitions and expired leases")
     void shouldRejectInvalidReconciliationTransitionsAndExpiredLease() {
         var sourceWalletId = UUID.randomUUID();
@@ -731,7 +771,7 @@ class TransferUseCaseTransactionIntegrationTest {
         walletRepository.save(new Wallet(destinationWalletId, "Jane Doe", "jane@example.com", new BigDecimal("50.00"), now, now));
 
         doReturn(false).when(transferOperationRepositorySpy)
-                .updateStatus(anyString(), eq(TransferOperationStatus.APPLIED));
+                .updateStatus(anyString(), eq(TransferOperationStatus.APPLIED), anyString());
 
         var ex = assertThrows(IllegalStateException.class, () -> transferUseCase.execute(new TransferRequest(
                 sourceWalletId,

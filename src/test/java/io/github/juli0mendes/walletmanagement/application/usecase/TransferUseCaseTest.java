@@ -13,6 +13,7 @@ import io.github.juli0mendes.walletmanagement.domain.repository.WalletRepository
 import io.github.juli0mendes.walletmanagement.dto.TransferRequest;
 import io.github.juli0mendes.walletmanagement.dto.TransferResponse;
 import io.github.juli0mendes.walletmanagement.exception.WalletNotFoundException;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -29,6 +30,9 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -47,6 +51,11 @@ class TransferUseCaseTest {
     @InjectMocks
     private TransferUseCase transferUseCase;
 
+    @BeforeEach
+    void setUp() {
+        lenient().when(transferOperationRepository.markExecutionInProgress(anyString(), anyString(), any(LocalDateTime.class))).thenReturn(true);
+    }
+
     @Test
     @DisplayName("Should transfer successfully")
     void shouldTransferSuccessfully() {
@@ -62,7 +71,8 @@ class TransferUseCaseTest {
         when(walletRepository.findById(destinationWalletId)).thenReturn(Optional.of(destWallet));
         when(walletRepository.save(any(Wallet.class))).thenReturn(sourceWallet, destWallet);
         when(transactionRepository.save(any(Transaction.class))).thenReturn(new Transaction(UUID.randomUUID(), sourceWalletId, TransactionType.TRANSFER_OUT, BigDecimal.valueOf(100.00), BigDecimal.valueOf(100.00), "Test transfer", now));
-        when(transferOperationRepository.updateStatus("op-success-1", TransferOperationStatus.APPLIED)).thenReturn(true);
+        when(transferOperationRepository.markExecutionInProgress(anyString(), anyString(), any(LocalDateTime.class))).thenReturn(true);
+        when(transferOperationRepository.updateStatus(eq("op-success-1"), eq(TransferOperationStatus.APPLIED), anyString())).thenReturn(true);
 
         TransferResponse response = transferUseCase.execute(request);
 

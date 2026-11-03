@@ -62,6 +62,19 @@ A reconciliação MUST considerar apenas lançamentos associados ao mesmo `trans
 - **WHEN** duas operações financeiras possuem a mesma carteira de origem, destino, valor e descrição
 - **THEN** o sistema MUST garantir que a reconciliação use apenas os lançamentos que compartilham o mesmo `transferId` e `operationId` da operação em análise, sem cruzar evidências entre transferências diferentes
 
+### Requirement: Ownership seguro e fencing de execução
+A execução financeira MUST possuir ownership exclusivo e monotônico por tentativa, e SHALL rejeitar qualquer confirmação de `APPLIED` que não corresponda ao owner ativo da execução atual. A operação MUST permanecer em estado inconclusivo quando não houver autorização válida para concluir o passo financeiro.
+
+#### Scenario: Executor antigo tentando confirmar após rotação de ownership
+- **WHEN** uma transferência já teve seu ownership renovado por uma tentativa mais recente
+- **THEN** qualquer worker antigo MUST NOT confirmar `APPLIED` nem sobrescrever o estado operacional usando o owner vencido
+- **AND** a aplicação MUST validar esse critério atômico dentro da transação financeira e do MongoDB
+
+#### Scenario: Lease expirado durante execução ativa
+- **WHEN** o lease de execução expira enquanto a transação financeira ainda está em andamento
+- **THEN** o reconciliador MUST NOT assumir a operação como abandonada somente por expiração temporal
+- **AND** MUST preservar o estado inconclusivo até que haja evidência operacional suficiente para concluir ou rejeitar a operação
+
 ### Requirement: Idempotência e rastreabilidade de transferências
 O sistema MUST conservar um identificador único de operação e SHALL rejeitar ou reutilizar de forma segura as requisições repetidas, evitando duplicidade financeira e mantendo as evidências de processamento.
 

@@ -40,7 +40,7 @@ public class TransferUseCase {
     private final Clock clock;
 
     @Value("${wallet.transfer.reconciliation.lease-duration:PT5M}")
-    private Duration executionLeaseDuration;
+    private Duration executionLeaseDuration = Duration.ofMinutes(5);
 
     public TransferUseCase(WalletRepository walletRepository,
                            TransactionRepository transactionRepository,
@@ -104,7 +104,7 @@ public class TransferUseCase {
             throw ex;
         }
 
-        String executionOwner = "transfer-execution:" + operationId;
+        String executionOwner = buildExecutionOwner(operationId);
         LocalDateTime executionLeaseExpiresAt = LocalDateTime.now(clock).plus(executionLeaseDuration);
         if (!transferOperationRepository.markExecutionInProgress(operationId, executionOwner, executionLeaseExpiresAt)) {
             throw new IllegalStateException("Transfer execution lease could not be acquired for operation id: " + operationId);
@@ -112,9 +112,9 @@ public class TransferUseCase {
 
         try {
             if (transactionTemplate == null) {
-                return executeTransactionalLogic(request, operationId, payloadHash, transferId, now);
+                return executeTransactionalLogic(request, operationId, payloadHash, transferId, now, executionOwner);
             }
-            return transactionTemplate.execute(status -> executeTransactionalLogic(request, operationId, payloadHash, transferId, now));
+            return transactionTemplate.execute(status -> executeTransactionalLogic(request, operationId, payloadHash, transferId, now, executionOwner));
         } catch (RuntimeException ex) {
             if (isUnknownCommitResult(ex)) {
                 transferOperationRepository.updateStatus(operationId, TransferOperationStatus.UNKNOWN_COMMIT_RESULT);
@@ -130,7 +130,8 @@ public class TransferUseCase {
                                                      String operationId,
                                                      String payloadHash,
                                                      UUID transferId,
-                                                     LocalDateTime now) {
+                                                     LocalDateTime now,
+                                                     String executionOwner) {
         LocalDateTime executionNow = LocalDateTime.now(clock);
         UUID sourceWalletId = request.sourceWalletId();
         UUID destinationWalletId = request.destinationWalletId();
@@ -174,7 +175,7 @@ public class TransferUseCase {
         );
         transactionRepository.save(destTransaction);
 
-        if (!transferOperationRepository.updateStatus(operationId, TransferOperationStatus.APPLIED)) {
+        if (!transferOperationRepository.updateStatus(operationId, TransferOperationStatus.APPLIED, executionOwner)) {
             throw new IllegalStateException("Transfer operation transition to APPLIED failed for operation id: " + operationId);
         }
 
@@ -188,6 +189,25 @@ public class TransferUseCase {
                 request.description(),
                 now
         );
+    }
+
+    private String buildExecutionOwner(String operationId) {
+        String prefix = "transfer-execution:" + operationId + ":";
+        String currentOwner = transferOperationRepository.findByOperationId(operationId)
+                .map(TransferOperation::getLeaseOwner)
+                .orElse(null);
+        long nextFenceToken = 1L;
+
+        if (currentOwner != null && currentOwner.startsWith(prefix)) {
+            String tokenValue = currentOwner.substring(prefix.length());
+            try {
+                nextFenceToken = Long.parseLong(tokenValue) + 1L;
+            } catch (NumberFormatException ignored) {
+                nextFenceToken = 1L;
+            }
+        }
+
+        return prefix + nextFenceToken;
     }
 
     private TransferResponse toResponse(TransferOperation operation) {

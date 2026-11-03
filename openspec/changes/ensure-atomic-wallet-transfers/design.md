@@ -91,10 +91,17 @@ A implementação deve diferenciar claramente:
 - descrição e valor deixam de ser usados como identificadores primários de confirmação financeira
 - a operação em `UNKNOWN_COMMIT_RESULT` só é marcada como `APPLIED` quando existem os dois lançamentos esperados para a mesma transferência
 
+**Lease de execução e fencing token:**
+- cada tentativa de execução financeira recebe um `executionOwner` persistente em formato monotônico, por exemplo `transfer-execution:<operationId>:<n>`
+- a confirmação para `APPLIED` exige que o `leaseOwner` observado na operação corresponda exatamente ao owner ativo da tentativa atual
+- um executor antigo não pode confirmar `APPLIED` após a rotação de ownership mesmo que o lease anterior ainda esteja presente em memória
+- a validação do ownership acontece dentro da mesma transação MongoDB que persiste saldos e lançamentos financeiros
+
 **Lease de reconciliação:**
 - o processo de reconciliação usa lease persistido no MongoDB com expiração e identificador de proprietário
 - uma operação em `RECONCILING` pode ser retomada após expiração do lease
 - workers antigos não podem finalizar uma operação cujo lease já foi reassumido por outra instância
+- a recuperação de `INITIATED` exige ausência de ownership de execução válido; timeout isolado não é considerado evidência de abandono
 
 **Escopo explícito:**
 - a idempotência completa da operação de transferência está fora do escopo desta mudança

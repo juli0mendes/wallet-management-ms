@@ -108,7 +108,10 @@ public class TransferOperationReconciliationService {
         }
 
         LocalDateTime now = LocalDateTime.now(clock);
-        if (operation.getLeaseOwner() != null && operation.getLeaseExpiresAt() != null && !operation.getLeaseExpiresAt().isBefore(now)) {
+        if (operation.getLeaseOwner() != null && !operation.getLeaseOwner().isBlank()) {
+            return false;
+        }
+        if (operation.getLeaseExpiresAt() != null && !operation.getLeaseExpiresAt().isBefore(now)) {
             return false;
         }
 

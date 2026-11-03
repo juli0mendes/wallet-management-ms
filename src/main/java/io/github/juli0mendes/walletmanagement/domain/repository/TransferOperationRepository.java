@@ -13,6 +13,7 @@ public interface TransferOperationRepository {
     List<TransferOperation> findPendingReconciliation(int limit, LocalDateTime asOf);
     TransferOperation save(TransferOperation transferOperation);
     boolean updateStatus(String operationId, TransferOperationStatus status);
+    boolean updateStatus(String operationId, TransferOperationStatus status, String expectedLeaseOwner);
     boolean markExecutionInProgress(String operationId, String executionOwner, LocalDateTime leaseExpiresAt);
     boolean markReconciliationInProgress(String operationId);
     boolean acquireReconciliationLease(String operationId, String leaseOwner, LocalDateTime leaseExpiresAt);

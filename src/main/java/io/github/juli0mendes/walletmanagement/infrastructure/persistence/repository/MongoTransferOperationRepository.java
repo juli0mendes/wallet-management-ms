@@ -120,6 +120,11 @@ public class MongoTransferOperationRepository implements TransferOperationReposi
 
     @Override
     public boolean updateStatus(String operationId, TransferOperationStatus status) {
+        return updateStatus(operationId, status, null);
+    }
+
+    @Override
+    public boolean updateStatus(String operationId, TransferOperationStatus status, String expectedLeaseOwner) {
         if (operationId == null || operationId.isBlank() || status == null) {
             return false;
         }
@@ -137,8 +142,16 @@ public class MongoTransferOperationRepository implements TransferOperationReposi
             return false;
         }
 
-        Query query = new Query(Criteria.where("operationId").is(operationId)
-                .and("status").in(allowedCurrentStatuses.stream().map(Enum::name).toList()));
+        Criteria criteria = Criteria.where("operationId").is(operationId)
+                .and("status").in(allowedCurrentStatuses.stream().map(Enum::name).toList());
+        if (status == TransferOperationStatus.APPLIED && expectedLeaseOwner != null && !expectedLeaseOwner.isBlank()) {
+            criteria = criteria.and("leaseOwner").is(expectedLeaseOwner)
+                    .and("leaseExpiresAt").gt(now);
+        } else if (expectedLeaseOwner != null && !expectedLeaseOwner.isBlank()) {
+            criteria = criteria.and("leaseOwner").is(expectedLeaseOwner);
+        }
+
+        Query query = new Query(criteria);
         Update update = new Update()
                 .set("status", status.name())
                 .set("updatedAt", now);
@@ -181,7 +194,8 @@ public class MongoTransferOperationRepository implements TransferOperationReposi
         LocalDateTime now = LocalDateTime.now(clock);
         Criteria statusCriteria = new Criteria().orOperator(
                 Criteria.where("status").is(TransferOperationStatus.INITIATED.name())
-                        .and("updatedAt").lt(now.minus(initiatedStaleAfter)),
+                        .and("updatedAt").lt(now.minus(initiatedStaleAfter))
+                        .and("leaseOwner").exists(false),
                 Criteria.where("status").is(TransferOperationStatus.UNKNOWN_COMMIT_RESULT.name()),
                 Criteria.where("status").is(TransferOperationStatus.RECONCILING.name())
         );

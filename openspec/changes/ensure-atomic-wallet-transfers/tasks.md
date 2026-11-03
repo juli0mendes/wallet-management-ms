@@ -35,3 +35,6 @@
 - [x] 5.2 Classificar `UNKNOWN_COMMIT_RESULT` apenas quando o MongoDB sinaliza explicitamente o rótulo `UnknownTransactionCommitResult`.
 - [x] 5.3 Implementar lease de reconciliação persistido no MongoDB para recuperar operações em `RECONCILING` após falha da instância.
 - [x] 5.4 Validar o comportamento com testes de regressão que reproduzem transferências com atributos financeiros idênticos e leases expirados.
+- [x] 5.5 Adotar ownership monotônico por tentativa de execução para impedir confirmação por workers antigos após rotação de lease.
+- [x] 5.6 Validar `APPLIED` somente com `leaseOwner` atômico e compatível com a tentativa atual, preservando rollback e estados terminais.
+- [x] 5.7 Proteger `INITIATED` contra recuperação prematura quando houver ownership de execução ainda válido ou indeterminado.
