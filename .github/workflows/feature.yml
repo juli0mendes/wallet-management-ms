@@ -60,6 +60,7 @@ jobs:
       - name: Run unit tests
         env:
           MONGODB_URI: mongodb://walletadmin:walletpass@localhost:27017/wallet_management?authSource=admin
+          SPRING_DATA_MONGODB_URI: mongodb://walletadmin:walletpass@localhost:27017/wallet_management?authSource=admin
         run: mvn -B test
 
   create-or-update-pr:
