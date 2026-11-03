@@ -5,9 +5,15 @@ import io.github.juli0mendes.walletmanagement.domain.model.TransferOperationStat
 import io.github.juli0mendes.walletmanagement.domain.repository.TransferOperationRepository;
 import io.github.juli0mendes.walletmanagement.infrastructure.persistence.mapper.TransferOperationMapper;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -15,17 +21,31 @@ public class MongoTransferOperationRepository implements TransferOperationReposi
 
     private final TransferOperationDataRepository transferOperationDataRepository;
     private final TransferOperationMapper transferOperationMapper;
+    private final MongoTemplate mongoTemplate;
 
     public MongoTransferOperationRepository(TransferOperationDataRepository transferOperationDataRepository,
-                                           TransferOperationMapper transferOperationMapper) {
+                                           TransferOperationMapper transferOperationMapper,
+                                           MongoTemplate mongoTemplate) {
         this.transferOperationDataRepository = transferOperationDataRepository;
         this.transferOperationMapper = transferOperationMapper;
+        this.mongoTemplate = mongoTemplate;
     }
 
     @Override
     public Optional<TransferOperation> findByOperationId(String operationId) {
         return transferOperationDataRepository.findByOperationId(operationId)
                 .map(transferOperationMapper::toDomain);
+    }
+
+    @Override
+    public List<TransferOperation> findByStatus(TransferOperationStatus status, int limit) {
+        Query query = new Query(Criteria.where("status").is(status.name()))
+                .with(Sort.by(Sort.Direction.ASC, "updatedAt"))
+                .limit(limit);
+        return mongoTemplate.find(query, io.github.juli0mendes.walletmanagement.infrastructure.persistence.document.TransferOperationDocument.class)
+                .stream()
+                .map(transferOperationMapper::toDomain)
+                .toList();
     }
 
     @Override
@@ -47,5 +67,18 @@ public class MongoTransferOperationRepository implements TransferOperationReposi
                     document.setUpdatedAt(LocalDateTime.now());
                     transferOperationDataRepository.save(document);
                 });
+    }
+
+    @Override
+    public boolean markReconciliationInProgress(String operationId) {
+        Query query = new Query(Criteria.where("operationId").is(operationId)
+                .and("status").is(TransferOperationStatus.UNKNOWN_COMMIT_RESULT.name()));
+        Update update = new Update()
+                .set("status", TransferOperationStatus.RECONCILING.name())
+                .set("updatedAt", LocalDateTime.now());
+
+        return mongoTemplate.updateFirst(query, update,
+                io.github.juli0mendes.walletmanagement.infrastructure.persistence.document.TransferOperationDocument.class)
+                .getModifiedCount() > 0;
     }
 }

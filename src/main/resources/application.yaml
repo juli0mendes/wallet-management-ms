@@ -21,6 +21,14 @@ server:
   servlet:
     context-path: /
 
+wallet:
+  transfer:
+    reconciliation:
+      enabled: true
+      fixed-delay: 30000
+      initial-delay: 5000
+      batch-limit: 20
+
 management:
   endpoints:
     web:

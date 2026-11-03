@@ -14,6 +14,10 @@ public class TransferOperationMapper {
         return new TransferOperationDocument(
                 transferOperation.getId().toString(),
                 transferOperation.getOperationId(),
+                transferOperation.getTransferId() != null ? transferOperation.getTransferId().toString() : null,
+                transferOperation.getSourceWalletId() != null ? transferOperation.getSourceWalletId().toString() : null,
+                transferOperation.getDestinationWalletId() != null ? transferOperation.getDestinationWalletId().toString() : null,
+                transferOperation.getAmount(),
                 transferOperation.getPayloadHash(),
                 transferOperation.getStatus().name(),
                 transferOperation.getDescription(),
@@ -26,6 +30,10 @@ public class TransferOperationMapper {
         return new TransferOperation(
                 UUID.fromString(document.getId()),
                 document.getOperationId(),
+                document.getTransferId() != null ? UUID.fromString(document.getTransferId()) : UUID.randomUUID(),
+                document.getSourceWalletId() != null ? UUID.fromString(document.getSourceWalletId()) : null,
+                document.getDestinationWalletId() != null ? UUID.fromString(document.getDestinationWalletId()) : null,
+                document.getAmount(),
                 document.getPayloadHash(),
                 TransferOperationStatus.valueOf(document.getStatus()),
                 document.getDescription(),

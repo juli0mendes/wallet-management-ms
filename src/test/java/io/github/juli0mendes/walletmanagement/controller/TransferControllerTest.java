@@ -2,6 +2,9 @@ package io.github.juli0mendes.walletmanagement.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.juli0mendes.walletmanagement.application.usecase.TransferUseCase;
+import io.github.juli0mendes.walletmanagement.domain.model.TransferOperation;
+import io.github.juli0mendes.walletmanagement.domain.model.TransferOperationStatus;
+import io.github.juli0mendes.walletmanagement.domain.repository.TransferOperationRepository;
 import io.github.juli0mendes.walletmanagement.dto.TransferRequest;
 import io.github.juli0mendes.walletmanagement.dto.TransferResponse;
 import org.junit.jupiter.api.DisplayName;
@@ -14,10 +17,12 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -33,6 +38,9 @@ class TransferControllerTest {
 
     @MockBean
     private TransferUseCase transferUseCase;
+
+    @MockBean
+    private TransferOperationRepository transferOperationRepository;
 
     @Test
     @DisplayName("Should process transfer successfully")
@@ -56,6 +64,37 @@ class TransferControllerTest {
                 .andExpect(jsonPath("$.destination_wallet_id").value(destinationWalletId.toString()))
                 .andExpect(jsonPath("$.amount").value(100.00))
                 .andExpect(jsonPath("$.status").value("COMPLETED"));
+    }
+
+    @Test
+    @DisplayName("Should query a transfer operation by operation id")
+    void shouldQueryTransferOperationByOperationId() throws Exception {
+        var sourceWalletId = UUID.randomUUID();
+        var destinationWalletId = UUID.randomUUID();
+        var transferId = UUID.randomUUID();
+        var operationId = "op-query";
+        var now = LocalDateTime.now();
+        var operation = new TransferOperation(
+                UUID.randomUUID(),
+                operationId,
+                transferId,
+                sourceWalletId,
+                destinationWalletId,
+                BigDecimal.valueOf(75.00),
+                "hash-123",
+                TransferOperationStatus.UNKNOWN_COMMIT_RESULT,
+                "query transfer",
+                now,
+                now
+        );
+
+        when(transferOperationRepository.findByOperationId(operationId)).thenReturn(Optional.of(operation));
+
+        mockMvc.perform(get("/api/v1/transfers/operations/{operationId}", operationId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.operation_id").value(operationId))
+                .andExpect(jsonPath("$.transfer_id").value(transferId.toString()))
+                .andExpect(jsonPath("$.status").value("UNKNOWN_COMMIT_RESULT"));
     }
 
     @Test

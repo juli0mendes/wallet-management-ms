@@ -1,9 +1,12 @@
 package io.github.juli0mendes.walletmanagement.application.usecase;
 
+import io.github.juli0mendes.walletmanagement.application.service.TransferOperationReconciliationService;
 import io.github.juli0mendes.walletmanagement.domain.exception.DuplicateTransferOperationException;
 import io.github.juli0mendes.walletmanagement.domain.exception.InsufficientBalanceException;
+import io.github.juli0mendes.walletmanagement.domain.model.TransferOperation;
 import io.github.juli0mendes.walletmanagement.domain.model.TransferOperationStatus;
 import io.github.juli0mendes.walletmanagement.domain.model.Wallet;
+import io.github.juli0mendes.walletmanagement.domain.repository.TransferOperationRepository;
 import io.github.juli0mendes.walletmanagement.domain.repository.WalletRepository;
 import io.github.juli0mendes.walletmanagement.dto.TransferRequest;
 import io.github.juli0mendes.walletmanagement.infrastructure.persistence.document.TransferOperationDocument;
@@ -36,6 +39,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -70,6 +74,12 @@ class TransferUseCaseTransactionIntegrationTest {
 
     @Autowired
     private TransferUseCase transferUseCase;
+
+    @Autowired
+    private TransferOperationReconciliationService reconciliationService;
+
+    @Autowired
+    private TransferOperationRepository transferOperationRepository;
 
     @Autowired
     private WalletRepository walletRepository;
@@ -331,6 +341,84 @@ class TransferUseCaseTransactionIntegrationTest {
                 "different payload",
                 operationId
         )));
+    }
+
+    @Test
+    @DisplayName("Should reconcile an indeterminate operation when financial evidence exists")
+    void shouldReconcileIndeterminateOperationWhenFinancialEvidenceExists() {
+        var sourceWalletId = UUID.randomUUID();
+        var destinationWalletId = UUID.randomUUID();
+        var amount = new BigDecimal("40.00");
+        var description = "reconcile transfer";
+        var operationId = "reconcile-known";
+        var transferId = UUID.randomUUID();
+        var now = LocalDateTime.now();
+
+        transferOperationRepository.save(new TransferOperation(
+                UUID.randomUUID(),
+                operationId,
+                transferId,
+                sourceWalletId,
+                destinationWalletId,
+                amount,
+                "payload-hash",
+                TransferOperationStatus.UNKNOWN_COMMIT_RESULT,
+                description,
+                now,
+                now
+        ));
+
+        transactionDataRepository.save(new io.github.juli0mendes.walletmanagement.infrastructure.persistence.document.TransactionDocument(
+                UUID.randomUUID().toString(),
+                sourceWalletId.toString(),
+                "TRANSFER_OUT",
+                amount,
+                new BigDecimal("160.00"),
+                description,
+                now
+        ));
+        transactionDataRepository.save(new io.github.juli0mendes.walletmanagement.infrastructure.persistence.document.TransactionDocument(
+                UUID.randomUUID().toString(),
+                destinationWalletId.toString(),
+                "TRANSFER_IN",
+                amount,
+                new BigDecimal("140.00"),
+                description,
+                now
+        ));
+
+        var operation = transferOperationRepository.findByOperationId(operationId).orElseThrow();
+        assertTrue(reconciliationService.reconcileOperation(operation));
+        assertEquals(TransferOperationStatus.APPLIED, transferOperationRepository.findByOperationId(operationId).orElseThrow().getStatus());
+    }
+
+    @Test
+    @DisplayName("Should keep an operation in unknown state when no financial evidence exists")
+    void shouldKeepUnknownStatusWhenNoFinancialEvidenceExists() {
+        var sourceWalletId = UUID.randomUUID();
+        var destinationWalletId = UUID.randomUUID();
+        var amount = new BigDecimal("40.00");
+        var operationId = "reconcile-unknown";
+        var now = LocalDateTime.now();
+
+        transferOperationRepository.save(new TransferOperation(
+                UUID.randomUUID(),
+                operationId,
+                UUID.randomUUID(),
+                sourceWalletId,
+                destinationWalletId,
+                amount,
+                "payload-hash",
+                TransferOperationStatus.UNKNOWN_COMMIT_RESULT,
+                "indeterminate transfer",
+                now,
+                now
+        ));
+
+        var operation = transferOperationRepository.findByOperationId(operationId).orElseThrow();
+        assertFalse(reconciliationService.reconcileOperation(operation));
+        assertEquals(TransferOperationStatus.UNKNOWN_COMMIT_RESULT,
+                transferOperationRepository.findByOperationId(operationId).orElseThrow().getStatus());
     }
 
     @Test

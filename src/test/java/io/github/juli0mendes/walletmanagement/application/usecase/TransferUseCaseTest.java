@@ -168,7 +168,7 @@ class TransferUseCaseTest {
 
     private static String payloadHashOf(TransferRequest request) {
         String payload = request.sourceWalletId() + "|" + request.destinationWalletId() + "|"
-                + request.amount() + "|" + request.description();
+                + request.amount().stripTrailingZeros().toPlainString() + "|" + request.description();
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] hash = digest.digest(payload.getBytes(StandardCharsets.UTF_8));

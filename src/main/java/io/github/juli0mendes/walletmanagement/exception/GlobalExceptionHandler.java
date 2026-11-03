@@ -3,6 +3,7 @@ package io.github.juli0mendes.walletmanagement.exception;
 import io.github.juli0mendes.walletmanagement.domain.exception.DuplicateTransferOperationException;
 import io.github.juli0mendes.walletmanagement.domain.exception.InsufficientBalanceException;
 import io.github.juli0mendes.walletmanagement.domain.exception.InvalidWalletException;
+import io.github.juli0mendes.walletmanagement.domain.exception.TransferOperationNotFoundException;
 import io.github.juli0mendes.walletmanagement.domain.exception.UnknownTransactionCommitResultException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -89,6 +90,19 @@ public class GlobalExceptionHandler {
                 path
         );
         return new ResponseEntity<>(errorResponse, HttpStatus.ACCEPTED);
+    }
+
+    @ExceptionHandler(TransferOperationNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleTransferOperationNotFound(
+            TransferOperationNotFoundException ex, WebRequest request) {
+        String path = request.getDescription(false).replace("uri=", "");
+        log.warn("Transfer operation not found path={} message={}", path, ex.getMessage());
+        ErrorResponse errorResponse = new ErrorResponse(
+                "TRANSFER_OPERATION_NOT_FOUND",
+                ex.getMessage(),
+                path
+        );
+        return new ResponseEntity<>(errorResponse, HttpStatus.NOT_FOUND);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

@@ -29,8 +29,4 @@ public record TransferRequest(
     public TransferRequest(UUID sourceWalletId, UUID destinationWalletId, BigDecimal amount, String description) {
         this(sourceWalletId, destinationWalletId, amount, description, null);
     }
-
-    public String operationId() {
-        return operationId == null || operationId.isBlank() ? UUID.randomUUID().toString() : operationId;
-    }
 }
